@@ -44,7 +44,7 @@ public class VentanaInventario extends JFrame {
     }
 
     private void inicializarComponentes() {
-        setTitle("Inventario de una tienda");
+        setTitle("Sistema de Inventario de Tienda");
         setSize(1200, 700);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -60,7 +60,7 @@ public class VentanaInventario extends JFrame {
         add(crearPanelFormulario(), BorderLayout.EAST);
 
         // Panel inferior - Estado
-        add(crearPanelEstado(), BorderLayout.SOUTH);
+   //     add(crearPanelEstado(), BorderLayout.SOUTH);
     }
 
     private JPanel crearPanelBusqueda() {
@@ -71,15 +71,15 @@ public class VentanaInventario extends JFrame {
         txtBuscar = new JTextField(20);
         panel.add(txtBuscar);
 
-        btnBuscar = new JButton("🔍 Buscar");
+        btnBuscar = new JButton("Buscar");
         btnBuscar.addActionListener(e -> buscarProductos());
         panel.add(btnBuscar);
 
-        JButton btnMostrarTodos = new JButton("📋 Mostrar Todos");
+        JButton btnMostrarTodos = new JButton("Mostrar Todos");
         btnMostrarTodos.addActionListener(e -> cargarDatos());
         panel.add(btnMostrarTodos);
 
-        btnStockBajo = new JButton("⚠️ Stock Bajo");
+        btnStockBajo = new JButton("Stock Bajo");
         btnStockBajo.addActionListener(e -> mostrarStockBajo());
         btnStockBajo.setBackground(new Color(255, 200, 100));
         panel.add(btnStockBajo);
@@ -202,22 +202,22 @@ public class VentanaInventario extends JFrame {
         // Botones
         JPanel panelBotones = new JPanel(new GridLayout(4, 1, 5, 5));
 
-        btnAgregar = new JButton("➕ Agregar");
+        btnAgregar = new JButton("Agregar");
         btnAgregar.setBackground(new Color(100, 200, 100));
         btnAgregar.addActionListener(e -> agregarProducto());
         panelBotones.add(btnAgregar);
 
-        btnActualizar = new JButton("✏️ Actualizar");
+        btnActualizar = new JButton("Actualizar");
         btnActualizar.setBackground(new Color(100, 150, 250));
         btnActualizar.addActionListener(e -> actualizarProducto());
         panelBotones.add(btnActualizar);
 
-        btnEliminar = new JButton("🗑️ Eliminar");
+        btnEliminar = new JButton("Eliminar");
         btnEliminar.setBackground(new Color(250, 100, 100));
         btnEliminar.addActionListener(e -> eliminarProducto());
         panelBotones.add(btnEliminar);
 
-        btnLimpiar = new JButton("🧹 Limpiar");
+        btnLimpiar = new JButton("Limpiar");
         btnLimpiar.addActionListener(e -> limpiarCampos());
         panelBotones.add(btnLimpiar);
 
@@ -229,17 +229,18 @@ public class VentanaInventario extends JFrame {
         return panel;
     }
 
-    private JPanel crearPanelEstado() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        panel.setBorder(BorderFactory.createEtchedBorder());
-
-        JLabel lblEstado = new JLabel("✅ Conectado a: inventario_tienda (MySQL - XAMPP)");
-        lblEstado.setFont(new Font("Arial", Font.BOLD, 12));
-        lblEstado.setForeground(new Color(0, 150, 0));
-        panel.add(lblEstado);
-
-        return panel;
-    }
+//    private JPanel crearPanelEstado() {
+//        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+//        panel.setBorder(BorderFactory.createEtchedBorder());
+//
+ //        JLabel lblEstado = new JLabel("✅ Conectado a: Firebase Firestore - Proyecto: " +
+//                com.tienda.database.ConexionDB.obtenerProyectoId());
+//        lblEstado.setFont(new Font("Arial", Font.BOLD, 12));
+//        lblEstado.setForeground(new Color(0, 150, 0));
+//        panel.add(lblEstado);
+//
+ //        return panel;
+//    }
 
     private void cargarCategorias() {
         cmbCategoria.removeAllItems();
