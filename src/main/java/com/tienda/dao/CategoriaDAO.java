@@ -97,7 +97,7 @@ public class CategoriaDAO {
     private Categoria documentToCategoria(DocumentSnapshot document) {
         try {
             Categoria categoria = new Categoria();
-            categoria.setIdCategoria(document.getLong("id_categoria").intValue());
+            categoria.setIdCategoria((int) document.getLong("id_categoria").longValue());
             categoria.setNombreCategoria(document.getString("nombre_categoria"));
             categoria.setDescripcion(document.getString("descripcion"));
             return categoria;

@@ -344,14 +344,14 @@ public class ProductoDAO {
     private Producto documentToProducto(DocumentSnapshot document) {
         try {
             Producto producto = new Producto();
-            producto.setIdProducto(document.getLong("id_producto").intValue());
+            producto.setIdProducto(document.getLong("id_producto").longValue());
             producto.setNombreProducto(document.getString("nombre_producto"));
             producto.setDescripcion(document.getString("descripcion"));
             producto.setPrecioUnitario(document.getDouble("precio_unitario"));
             producto.setStockActual(document.getLong("stock_actual").intValue());
             producto.setStockMinimo(document.getLong("stock_minimo").intValue());
-            producto.setIdCategoria(document.getLong("id_categoria").intValue());
-            producto.setIdProveedor(document.getLong("id_proveedor").intValue());
+            producto.setIdCategoria(document.getLong("id_categoria").longValue());
+            producto.setIdProveedor(document.getLong("id_proveedor").longValue());
             producto.setCodigoBarras(document.getString("codigo_barras"));
             producto.setActivo(document.getBoolean("activo"));
             producto.setNombreCategoria(document.getString("nombre_categoria"));

@@ -3,14 +3,14 @@ package com.tienda.modelo;
 import java.sql.Timestamp;
 
 public class Producto {
-    private int idProducto;
+    private long idProducto;
     private String nombreProducto;
     private String descripcion;
     private double precioUnitario;
     private int stockActual;
     private int stockMinimo;
-    private int idCategoria;
-    private int idProveedor;
+    private long idCategoria;
+    private long idProveedor;
     private String codigoBarras;
     private Timestamp fechaRegistro;
     private Timestamp ultimaActualizacion;
@@ -26,9 +26,9 @@ public class Producto {
     }
 
     // Constructor completo
-    public Producto(int idProducto, String nombreProducto, String descripcion,
+    public Producto(long idProducto, String nombreProducto, String descripcion,
                     double precioUnitario, int stockActual, int stockMinimo,
-                    int idCategoria, int idProveedor, String codigoBarras, boolean activo) {
+                    long idCategoria, long idProveedor, String codigoBarras, boolean activo) {
         this.idProducto = idProducto;
         this.nombreProducto = nombreProducto;
         this.descripcion = descripcion;
@@ -43,8 +43,8 @@ public class Producto {
 
     // Constructor para crear nuevo producto
     public Producto(String nombreProducto, String descripcion, double precioUnitario,
-                    int stockActual, int stockMinimo, int idCategoria,
-                    int idProveedor, String codigoBarras) {
+                    int stockActual, int stockMinimo, long idCategoria,
+                    long idProveedor, String codigoBarras) {
         this.nombreProducto = nombreProducto;
         this.descripcion = descripcion;
         this.precioUnitario = precioUnitario;
@@ -57,11 +57,11 @@ public class Producto {
     }
 
     // Getters y Setters
-    public int getIdProducto() {
+    public long getIdProducto() {
         return idProducto;
     }
 
-    public void setIdProducto(int idProducto) {
+    public void setIdProducto(long idProducto) {
         this.idProducto = idProducto;
     }
 
@@ -105,19 +105,19 @@ public class Producto {
         this.stockMinimo = stockMinimo;
     }
 
-    public int getIdCategoria() {
+    public long getIdCategoria() {
         return idCategoria;
     }
 
-    public void setIdCategoria(int idCategoria) {
+    public void setIdCategoria(long idCategoria) {
         this.idCategoria = idCategoria;
     }
 
-    public int getIdProveedor() {
+    public long getIdProveedor() {
         return idProveedor;
     }
 
-    public void setIdProveedor(int idProveedor) {
+    public void setIdProveedor(long idProveedor) {
         this.idProveedor = idProveedor;
     }
 

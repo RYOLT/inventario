@@ -42,7 +42,7 @@ public class VentanaInventario extends JFrame {
     }
 
     private void inicializarComponentes() {
-        setTitle("Sistema de Inventario - Tienda (Firebase Firestore)");
+        setTitle("Sistema de Inventario");
         setSize(1200, 700);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);

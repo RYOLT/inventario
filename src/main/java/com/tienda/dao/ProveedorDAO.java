@@ -190,7 +190,7 @@ public class ProveedorDAO {
     private Proveedor documentToProveedor(DocumentSnapshot document) {
         try {
             Proveedor proveedor = new Proveedor();
-            proveedor.setIdProveedor(document.getLong("id_proveedor").intValue());
+            proveedor.setIdProveedor((int) document.getLong("id_proveedor").longValue());
             proveedor.setNombreProveedor(document.getString("nombre_proveedor"));
             proveedor.setTelefono(document.getString("telefono"));
             proveedor.setEmail(document.getString("email"));
