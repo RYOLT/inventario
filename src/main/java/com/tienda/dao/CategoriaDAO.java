@@ -12,11 +12,11 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 public class CategoriaDAO {
-    private static final String COLLECTION_NAME = "categorias";
-    private Firestore firestore;
+    private static final String COLLECTION = "categorias";
+    private Firestore db;
 
     public CategoriaDAO() {
-        this.firestore = ConexionDB.getFirestore();
+        this.db = ConexionDB.getFirestore();
     }
 
     // Obtener todas las categorías
@@ -24,13 +24,13 @@ public class CategoriaDAO {
         List<Categoria> categorias = new ArrayList<>();
 
         try {
-            ApiFuture<QuerySnapshot> query = firestore.collection(COLLECTION_NAME)
-                    .orderBy("nombre_categoria")
+            ApiFuture<QuerySnapshot> future = db.collection(COLLECTION)
+                    .orderBy("nombreCategoria")
                     .get();
 
-            QuerySnapshot querySnapshot = query.get();
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
 
-            for (DocumentSnapshot document : querySnapshot.getDocuments()) {
+            for (DocumentSnapshot document : documents) {
                 Categoria categoria = documentToCategoria(document);
                 if (categoria != null) {
                     categorias.add(categoria);
@@ -38,7 +38,7 @@ public class CategoriaDAO {
             }
 
         } catch (InterruptedException | ExecutionException e) {
-            System.err.println("❌ Error al obtener categorías: " + e.getMessage());
+            System.err.println("Error al obtener categorías: " + e.getMessage());
         }
 
         return categorias;
@@ -47,62 +47,119 @@ public class CategoriaDAO {
     // Agregar nueva categoría
     public boolean agregar(Categoria categoria) {
         try {
-            Map<String, Object> categoriaMap = new HashMap<>();
+            Map<String, Object> data = new HashMap<>();
+            data.put("nombreCategoria", categoria.getNombreCategoria());
+            data.put("descripcion", categoria.getDescripcion());
+            data.put("fechaCreacion", FieldValue.serverTimestamp());
 
-            // Generar ID automático
-            DocumentReference docRef = firestore.collection(COLLECTION_NAME).document();
-            int id = docRef.getId().hashCode();
+            ApiFuture<DocumentReference> future = db.collection(COLLECTION).add(data);
+            DocumentReference docRef = future.get();
 
-            categoriaMap.put("id_categoria", id);
-            categoriaMap.put("nombre_categoria", categoria.getNombreCategoria());
-            categoriaMap.put("descripcion", categoria.getDescripcion());
-            categoriaMap.put("timestamp", FieldValue.serverTimestamp());
-            categoriaMap.put("docId", docRef.getId());
+            // Guardar el ID generado
+            categoria.setIdCategoria(docRef.getId().hashCode());
 
-            ApiFuture<WriteResult> result = docRef.set(categoriaMap);
-            result.get();
-
-            categoria.setIdCategoria(id);
-            System.out.println("✅ Categoría agregada: " + docRef.getId());
+            System.out.println("✓ Categoría agregada con ID: " + docRef.getId());
             return true;
 
         } catch (InterruptedException | ExecutionException e) {
-            System.err.println("❌ Error al agregar categoría: " + e.getMessage());
+            System.err.println("Error al agregar categoría: " + e.getMessage());
             return false;
         }
     }
 
-    // Obtener categoría por ID
-    public Categoria obtenerPorId(int id) {
+    // Obtener categoría por ID del documento
+    public Categoria obtenerPorDocId(String docId) {
         try {
-            ApiFuture<QuerySnapshot> query = firestore.collection(COLLECTION_NAME)
-                    .whereEqualTo("id_categoria", id)
-                    .limit(1)
-                    .get();
+            DocumentReference docRef = db.collection(COLLECTION).document(docId);
+            ApiFuture<DocumentSnapshot> future = docRef.get();
+            DocumentSnapshot document = future.get();
 
-            QuerySnapshot querySnapshot = query.get();
-
-            if (!querySnapshot.isEmpty()) {
-                return documentToCategoria(querySnapshot.getDocuments().get(0));
+            if (document.exists()) {
+                return documentToCategoria(document);
             }
 
         } catch (InterruptedException | ExecutionException e) {
-            System.err.println("❌ Error al obtener categoría: " + e.getMessage());
+            System.err.println("Error al obtener categoría: " + e.getMessage());
         }
 
         return null;
     }
 
-    // Convertir DocumentSnapshot a Categoria
-    private Categoria documentToCategoria(DocumentSnapshot document) {
+    // Obtener categoría por ID numérico
+    public Categoria obtenerPorId(int id) {
+        // En Firebase, buscaremos por el hashCode o usaremos el docId
+        // Esta es una función de compatibilidad
+        List<Categoria> todas = obtenerTodas();
+        for (Categoria cat : todas) {
+            if (cat.getIdCategoria() == id) {
+                return cat;
+            }
+        }
+        return null;
+    }
+
+    // Actualizar categoría
+    public boolean actualizar(String docId, Categoria categoria) {
         try {
-            Categoria categoria = new Categoria();
-            categoria.setIdCategoria((int) document.getLong("id_categoria").longValue());
-            categoria.setNombreCategoria(document.getString("nombre_categoria"));
-            categoria.setDescripcion(document.getString("descripcion"));
+            DocumentReference docRef = db.collection(COLLECTION).document(docId);
+            Map<String, Object> data = new HashMap<>();
+            data.put("nombreCategoria", categoria.getNombreCategoria());
+            data.put("descripcion", categoria.getDescripcion());
+
+            ApiFuture<WriteResult> future = docRef.set(data, SetOptions.merge());
+            future.get();
+
+            System.out.println("✓ Categoría actualizada");
+            return true;
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("Error al actualizar categoría: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // Eliminar categoría
+    public boolean eliminar(String docId) {
+        try {
+            DocumentReference docRef = db.collection(COLLECTION).document(docId);
+            ApiFuture<WriteResult> future = docRef.delete();
+            future.get();
+
+            System.out.println("✓ Categoría eliminada");
+            return true;
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("Error al eliminar categoría: " + e.getMessage());
+            if (e.getMessage().contains("foreign key") || e.getMessage().contains("constraint")) {
+                System.err.println("No se puede eliminar: hay productos asociados a esta categoría");
+            }
+            return false;
+        }
+    }
+
+    // Convertir DocumentSnapshot a Categoria
+    private Categoria documentToCategoria(DocumentSnapshot doc) {
+        try {
+            String nombreCategoria = doc.getString("nombreCategoria");
+            String descripcion = doc.getString("descripcion");
+
+            // Usar hashCode del ID del documento como ID numérico
+            int id = doc.getId().hashCode();
+
+            Categoria categoria = new Categoria(id, nombreCategoria, descripcion);
+
+            // La fecha de creación en Firestore
+            com.google.cloud.Timestamp timestamp = doc.getTimestamp("fechaCreacion");
+            if (timestamp != null) {
+                categoria.setFechaCreacion(new java.sql.Timestamp(timestamp.toDate().getTime()));
+            }
+
             return categoria;
+
         } catch (Exception e) {
             System.err.println("❌ Error al convertir documento de categoría: " + e.getMessage());
+            System.err.println("   Documento ID: " + doc.getId());
+            e.printStackTrace();
             return null;
         }
     }

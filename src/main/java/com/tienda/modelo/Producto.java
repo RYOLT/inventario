@@ -3,18 +3,21 @@ package com.tienda.modelo;
 import java.sql.Timestamp;
 
 public class Producto {
-    private long idProducto;
+    private int idProducto;
     private String nombreProducto;
     private String descripcion;
     private double precioUnitario;
     private int stockActual;
     private int stockMinimo;
-    private long idCategoria;
-    private long idProveedor;
+    private int idCategoria;
+    private int idProveedor;
     private String codigoBarras;
     private Timestamp fechaRegistro;
     private Timestamp ultimaActualizacion;
     private boolean activo;
+
+    // Para Firebase: guardar el ID del documento
+    private String documentoId;
 
     // Para mostrar en la interfaz (no están en la BD)
     private String nombreCategoria;
@@ -26,9 +29,9 @@ public class Producto {
     }
 
     // Constructor completo
-    public Producto(long idProducto, String nombreProducto, String descripcion,
+    public Producto(int idProducto, String nombreProducto, String descripcion,
                     double precioUnitario, int stockActual, int stockMinimo,
-                    long idCategoria, long idProveedor, String codigoBarras, boolean activo) {
+                    int idCategoria, int idProveedor, String codigoBarras, boolean activo) {
         this.idProducto = idProducto;
         this.nombreProducto = nombreProducto;
         this.descripcion = descripcion;
@@ -43,8 +46,8 @@ public class Producto {
 
     // Constructor para crear nuevo producto
     public Producto(String nombreProducto, String descripcion, double precioUnitario,
-                    int stockActual, int stockMinimo, long idCategoria,
-                    long idProveedor, String codigoBarras) {
+                    int stockActual, int stockMinimo, int idCategoria,
+                    int idProveedor, String codigoBarras) {
         this.nombreProducto = nombreProducto;
         this.descripcion = descripcion;
         this.precioUnitario = precioUnitario;
@@ -57,11 +60,11 @@ public class Producto {
     }
 
     // Getters y Setters
-    public long getIdProducto() {
+    public int getIdProducto() {
         return idProducto;
     }
 
-    public void setIdProducto(long idProducto) {
+    public void setIdProducto(int idProducto) {
         this.idProducto = idProducto;
     }
 
@@ -105,19 +108,19 @@ public class Producto {
         this.stockMinimo = stockMinimo;
     }
 
-    public long getIdCategoria() {
+    public int getIdCategoria() {
         return idCategoria;
     }
 
-    public void setIdCategoria(long idCategoria) {
+    public void setIdCategoria(int idCategoria) {
         this.idCategoria = idCategoria;
     }
 
-    public long getIdProveedor() {
+    public int getIdProveedor() {
         return idProveedor;
     }
 
-    public void setIdProveedor(long idProveedor) {
+    public void setIdProveedor(int idProveedor) {
         this.idProveedor = idProveedor;
     }
 
@@ -153,6 +156,15 @@ public class Producto {
         this.activo = activo;
     }
 
+    // Nuevo: getter y setter para el ID del documento de Firebase
+    public String getDocumentoId() {
+        return documentoId;
+    }
+
+    public void setDocumentoId(String documentoId) {
+        this.documentoId = documentoId;
+    }
+
     public String getNombreCategoria() {
         return nombreCategoria;
     }
@@ -169,7 +181,7 @@ public class Producto {
         this.nombreProveedor = nombreProveedor;
     }
 
-    // Método para verificar stock bajo
+    // Metodo para verificar stock bajo
     public boolean isBajoStock() {
         return stockActual <= stockMinimo;
     }
@@ -185,6 +197,7 @@ public class Producto {
                 ", categoria='" + nombreCategoria + '\'' +
                 ", proveedor='" + nombreProveedor + '\'' +
                 ", activo=" + activo +
+                ", documentoId='" + documentoId + '\'' +
                 '}';
     }
 }

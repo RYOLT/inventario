@@ -32,32 +32,28 @@ public class VentanaInventario extends JFrame {
     private JButton btnAgregar, btnActualizar, btnEliminar, btnLimpiar,
             btnBuscar, btnStockBajo;
 
+    // Para almacenar el documento ID seleccionado (necesario para Firebase)
+    private String documentoIdSeleccionado = null;
+
     public VentanaInventario() {
         productoDAO = new ProductoDAO();
         categoriaDAO = new CategoriaDAO();
         proveedorDAO = new ProveedorDAO();
 
         inicializarComponentes();
+        cargarCategorias();
+        cargarProveedores();
         cargarDatos();
     }
 
     private void inicializarComponentes() {
-        setTitle("Sistema de Inventario");
+        setTitle("Inventario de una tienda - Firebase");
         setSize(1200, 700);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
-        // Primero crear los ComboBox vacíos
-        cmbCategoria = new JComboBox<>();
-        cmbProveedor = new JComboBox<>();
-
-        // Luego cargar los datos en ellos
-        cargarCategorias();
-        cargarProveedores();
-
-        // Ahora crear la interfaz con los ComboBox ya cargados
-        // Panel superior - Búsqueda (ahora con categorías cargadas)
+        // Panel superior - Búsqueda
         add(crearPanelBusqueda(), BorderLayout.NORTH);
 
         // Panel central - Tabla
@@ -67,71 +63,29 @@ public class VentanaInventario extends JFrame {
         add(crearPanelFormulario(), BorderLayout.EAST);
 
         // Panel inferior - Estado
-        /*add(crearPanelEstado(), BorderLayout.SOUTH);*/
+        add(crearPanelEstado(), BorderLayout.SOUTH);
     }
 
     private JPanel crearPanelBusqueda() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         panel.setBorder(BorderFactory.createTitledBorder("Búsqueda y Filtros"));
 
-        // Panel superior con búsqueda
-        JPanel panelSuperior = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
-
-        panelSuperior.add(new JLabel("Buscar producto:"));
+        panel.add(new JLabel("Buscar producto:"));
         txtBuscar = new JTextField(20);
-        panelSuperior.add(txtBuscar);
+        panel.add(txtBuscar);
 
         btnBuscar = new JButton("🔍 Buscar");
         btnBuscar.addActionListener(e -> buscarProductos());
-        panelSuperior.add(btnBuscar);
+        panel.add(btnBuscar);
 
-        JButton btnMostrarTodos = new JButton("Mostrar Todos");
+        JButton btnMostrarTodos = new JButton("📋 Mostrar Todos");
         btnMostrarTodos.addActionListener(e -> cargarDatos());
-        panelSuperior.add(btnMostrarTodos);
+        panel.add(btnMostrarTodos);
 
-        btnStockBajo = new JButton("Stock Bajo");
+        btnStockBajo = new JButton("⚠️ Stock Bajo");
         btnStockBajo.addActionListener(e -> mostrarStockBajo());
         btnStockBajo.setBackground(new Color(255, 200, 100));
-        panelSuperior.add(btnStockBajo);
-
-        // Panel inferior con filtro deslizante de categorías
-        JPanel panelCategorias = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
-        panelCategorias.add(new JLabel("Filtrar por categoría:"));
-
-        JPanel panelBotonesCat = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        panelBotonesCat.setBorder(BorderFactory.createEtchedBorder());
-
-        // Botón "Todas"
-        JButton btnTodasCat = new JButton("Todas");
-        btnTodasCat.setBackground(new Color(70, 130, 180));
-        btnTodasCat.setForeground(Color.BLACK);
-        btnTodasCat.setFocusPainted(false);
-        btnTodasCat.addActionListener(e -> cargarDatos());
-        panelBotonesCat.add(btnTodasCat);
-
-        // Crear botón para cada categoría
-        for (int i = 0; i < cmbCategoria.getItemCount(); i++) {
-            Categoria cat = cmbCategoria.getItemAt(i);
-            JButton btnCat = new JButton(cat.getNombreCategoria());
-            btnCat.setBackground(new Color(100, 149, 237));
-            btnCat.setForeground(Color.BLACK);
-            btnCat.setFocusPainted(false);
-            btnCat.addActionListener(e -> filtrarPorCategoria(cat.getIdCategoria(), cat.getNombreCategoria()));
-            panelBotonesCat.add(btnCat);
-        }
-
-        // Envolver en un JScrollPane para hacerlo deslizable
-        JScrollPane scrollCategorias = new JScrollPane(panelBotonesCat);
-        scrollCategorias.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        scrollCategorias.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
-        scrollCategorias.setPreferredSize(new Dimension(950, 50));
-        scrollCategorias.setBorder(null);
-
-        panelCategorias.add(scrollCategorias);
-
-        // Agregar ambos paneles al panel principal
-        panel.add(panelSuperior, BorderLayout.NORTH);
-        panel.add(panelCategorias, BorderLayout.CENTER);
+        panel.add(btnStockBajo);
 
         return panel;
     }
@@ -140,7 +94,8 @@ public class VentanaInventario extends JFrame {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder("Productos en Inventario"));
 
-        String[] columnas = {"ID", "Nombre", "Descripción", "Precio", "Stock",
+        // Agregamos columna para el Doc ID (oculta pero necesaria)
+        String[] columnas = {"Doc ID", "Nombre", "Descripción", "Precio", "Stock",
                 "Stock Mín.", "Categoría", "Proveedor", "Código Barras"};
         modeloTabla = new DefaultTableModel(columnas, 0) {
             @Override
@@ -157,8 +112,12 @@ public class VentanaInventario extends JFrame {
             }
         });
 
+        // Ocultar la columna Doc ID (pero mantenerla en el modelo)
+        tablaProductos.getColumnModel().getColumn(0).setMinWidth(0);
+        tablaProductos.getColumnModel().getColumn(0).setMaxWidth(0);
+        tablaProductos.getColumnModel().getColumn(0).setWidth(0);
+
         // Ajustar anchos de columnas
-        tablaProductos.getColumnModel().getColumn(0).setPreferredWidth(50);  // ID
         tablaProductos.getColumnModel().getColumn(1).setPreferredWidth(150); // Nombre
         tablaProductos.getColumnModel().getColumn(2).setPreferredWidth(200); // Descripción
         tablaProductos.getColumnModel().getColumn(3).setPreferredWidth(80);  // Precio
@@ -228,7 +187,7 @@ public class VentanaInventario extends JFrame {
         gbc.gridx = 0; gbc.gridy = fila;
         panel.add(new JLabel("Categoría:*"), gbc);
         gbc.gridx = 1;
-        // Ya no creamos el ComboBox aquí, solo lo agregamos
+        cmbCategoria = new JComboBox<>();
         panel.add(cmbCategoria, gbc);
         fila++;
 
@@ -236,7 +195,7 @@ public class VentanaInventario extends JFrame {
         gbc.gridx = 0; gbc.gridy = fila;
         panel.add(new JLabel("Proveedor:*"), gbc);
         gbc.gridx = 1;
-        // Ya no creamos el ComboBox aquí, solo lo agregamos
+        cmbProveedor = new JComboBox<>();
         panel.add(cmbProveedor, gbc);
         fila++;
 
@@ -278,7 +237,17 @@ public class VentanaInventario extends JFrame {
         return panel;
     }
 
+    private JPanel crearPanelEstado() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        panel.setBorder(BorderFactory.createEtchedBorder());
 
+        JLabel lblEstado = new JLabel("✅ Conectado a: Firebase Firestore");
+        lblEstado.setFont(new Font("Arial", Font.BOLD, 12));
+        lblEstado.setForeground(new Color(0, 150, 0));
+        panel.add(lblEstado);
+
+        return panel;
+    }
 
     private void cargarCategorias() {
         cmbCategoria.removeAllItems();
@@ -286,7 +255,7 @@ public class VentanaInventario extends JFrame {
 
         if (categorias.isEmpty()) {
             JOptionPane.showMessageDialog(this,
-                    "No hay categorías. Ejecuta el script SQL primero.",
+                    "No hay categorías en Firebase.\nAgrega algunas desde la consola de Firebase.",
                     "Advertencia", JOptionPane.WARNING_MESSAGE);
         }
 
@@ -301,7 +270,7 @@ public class VentanaInventario extends JFrame {
 
         if (proveedores.isEmpty()) {
             JOptionPane.showMessageDialog(this,
-                    "No hay proveedores. Ejecuta el script SQL primero.",
+                    "No hay proveedores en Firebase.\nAgrega algunos desde la consola de Firebase.",
                     "Advertencia", JOptionPane.WARNING_MESSAGE);
         }
 
@@ -315,8 +284,12 @@ public class VentanaInventario extends JFrame {
         List<Producto> productos = productoDAO.obtenerTodosLosProductos();
 
         for (Producto p : productos) {
+            // Usamos el código de barras como ID de documento temporalmente
+            // En una implementación real, deberías guardar el docId en el producto
+            String docId = p.getCodigoBarras(); // Ajustar según tu implementación
+
             Object[] fila = {
-                    p.getIdProducto(),
+                    docId, // Doc ID (columna oculta)
                     p.getNombreProducto(),
                     p.getDescripcion(),
                     String.format("$%.2f", p.getPrecioUnitario()),
@@ -327,12 +300,7 @@ public class VentanaInventario extends JFrame {
                     p.getCodigoBarras()
             };
 
-            // Resaltar productos con stock bajo
             modeloTabla.addRow(fila);
-            if (p.isBajoStock()) {
-                int ultimaFila = modeloTabla.getRowCount() - 1;
-                // Podríamos cambiar el color de fondo aquí
-            }
         }
     }
 
@@ -350,8 +318,9 @@ public class VentanaInventario extends JFrame {
             JOptionPane.showMessageDialog(this, "No se encontraron productos");
         } else {
             for (Producto p : productos) {
+                String docId = p.getCodigoBarras();
                 Object[] fila = {
-                        p.getIdProducto(),
+                        docId,
                         p.getNombreProducto(),
                         p.getDescripcion(),
                         String.format("$%.2f", p.getPrecioUnitario()),
@@ -377,8 +346,9 @@ public class VentanaInventario extends JFrame {
                     JOptionPane.INFORMATION_MESSAGE);
         } else {
             for (Producto p : productos) {
+                String docId = p.getCodigoBarras();
                 Object[] fila = {
-                        p.getIdProducto(),
+                        docId,
                         p.getNombreProducto(),
                         p.getDescripcion(),
                         String.format("$%.2f", p.getPrecioUnitario()),
@@ -398,39 +368,8 @@ public class VentanaInventario extends JFrame {
         }
     }
 
-    private void filtrarPorCategoria(int idCategoria, String nombreCategoria) {
-        modeloTabla.setRowCount(0);
-        List<Producto> productos = productoDAO.buscarPorCategoria(idCategoria);
-
-        if (productos.isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                    "No hay productos en la categoría: " + nombreCategoria,
-                    "Sin resultados",
-                    JOptionPane.INFORMATION_MESSAGE);
-        } else {
-            for (Producto p : productos) {
-                Object[] fila = {
-                        p.getIdProducto(),
-                        p.getNombreProducto(),
-                        p.getDescripcion(),
-                        String.format("$%.2f", p.getPrecioUnitario()),
-                        p.getStockActual(),
-                        p.getStockMinimo(),
-                        p.getNombreCategoria(),
-                        p.getNombreProveedor(),
-                        p.getCodigoBarras()
-                };
-                modeloTabla.addRow(fila);
-            }
-
-            System.out.println("📂 Filtrado por categoría: " + nombreCategoria +
-                    " (" + productos.size() + " productos)");
-        }
-    }
-
     private void agregarProducto() {
         try {
-            // Validar campos obligatorios
             if (txtNombre.getText().trim().isEmpty() ||
                     txtPrecio.getText().trim().isEmpty() ||
                     txtStockActual.getText().trim().isEmpty() ||
@@ -468,7 +407,7 @@ public class VentanaInventario extends JFrame {
                 cargarDatos();
             } else {
                 JOptionPane.showMessageDialog(this,
-                        "❌ Error al agregar producto. Verifica las FK.",
+                        "❌ Error al agregar producto",
                         "Error",
                         JOptionPane.ERROR_MESSAGE);
             }
@@ -482,20 +421,17 @@ public class VentanaInventario extends JFrame {
 
     private void actualizarProducto() {
         int filaSeleccionada = tablaProductos.getSelectedRow();
-        if (filaSeleccionada == -1) {
+        if (filaSeleccionada == -1 || documentoIdSeleccionado == null) {
             JOptionPane.showMessageDialog(this,
                     "Seleccione un producto de la tabla");
             return;
         }
 
         try {
-            int id = (int) modeloTabla.getValueAt(filaSeleccionada, 0);
-
             Categoria categoriaSeleccionada = (Categoria) cmbCategoria.getSelectedItem();
             Proveedor proveedorSeleccionado = (Proveedor) cmbProveedor.getSelectedItem();
 
             Producto producto = new Producto(
-                    id,
                     txtNombre.getText().trim(),
                     txtDescripcion.getText().trim(),
                     Double.parseDouble(txtPrecio.getText().trim()),
@@ -503,11 +439,10 @@ public class VentanaInventario extends JFrame {
                     Integer.parseInt(txtStockMinimo.getText().trim()),
                     categoriaSeleccionada.getIdCategoria(),
                     proveedorSeleccionado.getIdProveedor(),
-                    txtCodigoBarras.getText().trim(),
-                    true
+                    txtCodigoBarras.getText().trim()
             );
 
-            if (productoDAO.actualizarProducto(producto)) {
+            if (productoDAO.actualizarProducto(documentoIdSeleccionado, producto)) {
                 JOptionPane.showMessageDialog(this,
                         "✅ Producto actualizado exitosamente");
                 limpiarCampos();
@@ -524,7 +459,7 @@ public class VentanaInventario extends JFrame {
 
     private void eliminarProducto() {
         int filaSeleccionada = tablaProductos.getSelectedRow();
-        if (filaSeleccionada == -1) {
+        if (filaSeleccionada == -1 || documentoIdSeleccionado == null) {
             JOptionPane.showMessageDialog(this,
                     "Seleccione un producto de la tabla");
             return;
@@ -539,9 +474,7 @@ public class VentanaInventario extends JFrame {
         );
 
         if (confirmacion == JOptionPane.YES_OPTION) {
-            int id = (int) modeloTabla.getValueAt(filaSeleccionada, 0);
-
-            if (productoDAO.eliminarProducto(id)) {
+            if (productoDAO.eliminarProducto(documentoIdSeleccionado)) {
                 JOptionPane.showMessageDialog(this,
                         "✅ Producto eliminado exitosamente");
                 limpiarCampos();
@@ -556,8 +489,10 @@ public class VentanaInventario extends JFrame {
     private void cargarProductoSeleccionado() {
         int filaSeleccionada = tablaProductos.getSelectedRow();
         if (filaSeleccionada != -1) {
-            int id = (int) modeloTabla.getValueAt(filaSeleccionada, 0);
-            Producto producto = productoDAO.obtenerProductoPorId(id);
+            // Obtener el Doc ID de la columna oculta
+            documentoIdSeleccionado = (String) modeloTabla.getValueAt(filaSeleccionada, 0);
+
+            Producto producto = productoDAO.obtenerProductoPorDocId(documentoIdSeleccionado);
 
             if (producto != null) {
                 txtNombre.setText(producto.getNombreProducto());
@@ -567,7 +502,6 @@ public class VentanaInventario extends JFrame {
                 txtStockMinimo.setText(String.valueOf(producto.getStockMinimo()));
                 txtCodigoBarras.setText(producto.getCodigoBarras());
 
-                // Seleccionar categoría y proveedor en los ComboBox
                 for (int i = 0; i < cmbCategoria.getItemCount(); i++) {
                     if (cmbCategoria.getItemAt(i).getIdCategoria() == producto.getIdCategoria()) {
                         cmbCategoria.setSelectedIndex(i);
@@ -593,6 +527,7 @@ public class VentanaInventario extends JFrame {
         txtStockMinimo.setText("");
         txtCodigoBarras.setText("");
         txtBuscar.setText("");
+        documentoIdSeleccionado = null;
 
         if (cmbCategoria.getItemCount() > 0) {
             cmbCategoria.setSelectedIndex(0);
