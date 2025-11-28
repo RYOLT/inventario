@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "435389859732",
+    "project_id": "inventario-db-a6063",
+    "storage_bucket": "inventario-db-a6063.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:435389859732:android:28286b911ac518adbbb181",
+        "android_client_info": {
+          "package_name": "inv.entario"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5tM4UkBSiQ_lVBkB2hnKdxjBRdixbFto"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

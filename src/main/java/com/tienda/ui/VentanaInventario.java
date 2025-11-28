@@ -38,19 +38,26 @@ public class VentanaInventario extends JFrame {
         proveedorDAO = new ProveedorDAO();
 
         inicializarComponentes();
-        cargarCategorias();
-        cargarProveedores();
         cargarDatos();
     }
 
     private void inicializarComponentes() {
-        setTitle("Sistema de Inventario de Tienda");
+        setTitle("Sistema de Inventario - Tienda (Firebase Firestore)");
         setSize(1200, 700);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
-        // Panel superior - Búsqueda
+        // Primero crear los ComboBox vacíos
+        cmbCategoria = new JComboBox<>();
+        cmbProveedor = new JComboBox<>();
+
+        // Luego cargar los datos en ellos
+        cargarCategorias();
+        cargarProveedores();
+
+        // Ahora crear la interfaz con los ComboBox ya cargados
+        // Panel superior - Búsqueda (ahora con categorías cargadas)
         add(crearPanelBusqueda(), BorderLayout.NORTH);
 
         // Panel central - Tabla
@@ -60,29 +67,71 @@ public class VentanaInventario extends JFrame {
         add(crearPanelFormulario(), BorderLayout.EAST);
 
         // Panel inferior - Estado
-   //     add(crearPanelEstado(), BorderLayout.SOUTH);
+        /*add(crearPanelEstado(), BorderLayout.SOUTH);*/
     }
 
     private JPanel crearPanelBusqueda() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createTitledBorder("Búsqueda y Filtros"));
 
-        panel.add(new JLabel("Buscar producto:"));
-        txtBuscar = new JTextField(20);
-        panel.add(txtBuscar);
+        // Panel superior con búsqueda
+        JPanel panelSuperior = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
 
-        btnBuscar = new JButton("Buscar");
+        panelSuperior.add(new JLabel("Buscar producto:"));
+        txtBuscar = new JTextField(20);
+        panelSuperior.add(txtBuscar);
+
+        btnBuscar = new JButton("🔍 Buscar");
         btnBuscar.addActionListener(e -> buscarProductos());
-        panel.add(btnBuscar);
+        panelSuperior.add(btnBuscar);
 
         JButton btnMostrarTodos = new JButton("Mostrar Todos");
         btnMostrarTodos.addActionListener(e -> cargarDatos());
-        panel.add(btnMostrarTodos);
+        panelSuperior.add(btnMostrarTodos);
 
         btnStockBajo = new JButton("Stock Bajo");
         btnStockBajo.addActionListener(e -> mostrarStockBajo());
         btnStockBajo.setBackground(new Color(255, 200, 100));
-        panel.add(btnStockBajo);
+        panelSuperior.add(btnStockBajo);
+
+        // Panel inferior con filtro deslizante de categorías
+        JPanel panelCategorias = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        panelCategorias.add(new JLabel("Filtrar por categoría:"));
+
+        JPanel panelBotonesCat = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        panelBotonesCat.setBorder(BorderFactory.createEtchedBorder());
+
+        // Botón "Todas"
+        JButton btnTodasCat = new JButton("Todas");
+        btnTodasCat.setBackground(new Color(70, 130, 180));
+        btnTodasCat.setForeground(Color.BLACK);
+        btnTodasCat.setFocusPainted(false);
+        btnTodasCat.addActionListener(e -> cargarDatos());
+        panelBotonesCat.add(btnTodasCat);
+
+        // Crear botón para cada categoría
+        for (int i = 0; i < cmbCategoria.getItemCount(); i++) {
+            Categoria cat = cmbCategoria.getItemAt(i);
+            JButton btnCat = new JButton(cat.getNombreCategoria());
+            btnCat.setBackground(new Color(100, 149, 237));
+            btnCat.setForeground(Color.BLACK);
+            btnCat.setFocusPainted(false);
+            btnCat.addActionListener(e -> filtrarPorCategoria(cat.getIdCategoria(), cat.getNombreCategoria()));
+            panelBotonesCat.add(btnCat);
+        }
+
+        // Envolver en un JScrollPane para hacerlo deslizable
+        JScrollPane scrollCategorias = new JScrollPane(panelBotonesCat);
+        scrollCategorias.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scrollCategorias.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+        scrollCategorias.setPreferredSize(new Dimension(950, 50));
+        scrollCategorias.setBorder(null);
+
+        panelCategorias.add(scrollCategorias);
+
+        // Agregar ambos paneles al panel principal
+        panel.add(panelSuperior, BorderLayout.NORTH);
+        panel.add(panelCategorias, BorderLayout.CENTER);
 
         return panel;
     }
@@ -179,7 +228,7 @@ public class VentanaInventario extends JFrame {
         gbc.gridx = 0; gbc.gridy = fila;
         panel.add(new JLabel("Categoría:*"), gbc);
         gbc.gridx = 1;
-        cmbCategoria = new JComboBox<>();
+        // Ya no creamos el ComboBox aquí, solo lo agregamos
         panel.add(cmbCategoria, gbc);
         fila++;
 
@@ -187,7 +236,7 @@ public class VentanaInventario extends JFrame {
         gbc.gridx = 0; gbc.gridy = fila;
         panel.add(new JLabel("Proveedor:*"), gbc);
         gbc.gridx = 1;
-        cmbProveedor = new JComboBox<>();
+        // Ya no creamos el ComboBox aquí, solo lo agregamos
         panel.add(cmbProveedor, gbc);
         fila++;
 
@@ -202,22 +251,22 @@ public class VentanaInventario extends JFrame {
         // Botones
         JPanel panelBotones = new JPanel(new GridLayout(4, 1, 5, 5));
 
-        btnAgregar = new JButton("Agregar");
+        btnAgregar = new JButton("➕ Agregar");
         btnAgregar.setBackground(new Color(100, 200, 100));
         btnAgregar.addActionListener(e -> agregarProducto());
         panelBotones.add(btnAgregar);
 
-        btnActualizar = new JButton("Actualizar");
+        btnActualizar = new JButton("✏️ Actualizar");
         btnActualizar.setBackground(new Color(100, 150, 250));
         btnActualizar.addActionListener(e -> actualizarProducto());
         panelBotones.add(btnActualizar);
 
-        btnEliminar = new JButton("Eliminar");
+        btnEliminar = new JButton("🗑️ Eliminar");
         btnEliminar.setBackground(new Color(250, 100, 100));
         btnEliminar.addActionListener(e -> eliminarProducto());
         panelBotones.add(btnEliminar);
 
-        btnLimpiar = new JButton("Limpiar");
+        btnLimpiar = new JButton("🧹 Limpiar");
         btnLimpiar.addActionListener(e -> limpiarCampos());
         panelBotones.add(btnLimpiar);
 
@@ -229,18 +278,7 @@ public class VentanaInventario extends JFrame {
         return panel;
     }
 
-//    private JPanel crearPanelEstado() {
-//        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-//        panel.setBorder(BorderFactory.createEtchedBorder());
-//
- //        JLabel lblEstado = new JLabel("✅ Conectado a: Firebase Firestore - Proyecto: " +
-//                com.tienda.database.ConexionDB.obtenerProyectoId());
-//        lblEstado.setFont(new Font("Arial", Font.BOLD, 12));
-//        lblEstado.setForeground(new Color(0, 150, 0));
-//        panel.add(lblEstado);
-//
- //        return panel;
-//    }
+
 
     private void cargarCategorias() {
         cmbCategoria.removeAllItems();
@@ -357,6 +395,36 @@ public class VentanaInventario extends JFrame {
                     "⚠️ Se encontraron " + productos.size() + " productos con stock bajo",
                     "Alerta de Stock",
                     JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
+    private void filtrarPorCategoria(int idCategoria, String nombreCategoria) {
+        modeloTabla.setRowCount(0);
+        List<Producto> productos = productoDAO.buscarPorCategoria(idCategoria);
+
+        if (productos.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "No hay productos en la categoría: " + nombreCategoria,
+                    "Sin resultados",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            for (Producto p : productos) {
+                Object[] fila = {
+                        p.getIdProducto(),
+                        p.getNombreProducto(),
+                        p.getDescripcion(),
+                        String.format("$%.2f", p.getPrecioUnitario()),
+                        p.getStockActual(),
+                        p.getStockMinimo(),
+                        p.getNombreCategoria(),
+                        p.getNombreProveedor(),
+                        p.getCodigoBarras()
+                };
+                modeloTabla.addRow(fila);
+            }
+
+            System.out.println("📂 Filtrado por categoría: " + nombreCategoria +
+                    " (" + productos.size() + " productos)");
         }
     }
 
