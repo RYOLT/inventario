@@ -37,3 +37,14 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+# Firebase credentials
+**/serviceAccountKey.json
+firebase-config.json
+google-services.json
+
+# Maven
+.idea/
+
+# Logs
+*.log

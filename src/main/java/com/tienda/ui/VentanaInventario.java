@@ -7,13 +7,16 @@ import com.tienda.modelo.Categoria;
 import com.tienda.modelo.Producto;
 import com.tienda.modelo.Proveedor;
 
+import com.tienda.firebase.FirebaseConfig;
+import com.tienda.dao.ProductoFirestoreDAO; // NUEVO
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
 
 public class VentanaInventario extends JFrame {
-    private ProductoDAO productoDAO;
+    private ProductoFirestoreDAO productoDAO;
     private CategoriaDAO categoriaDAO;
     private ProveedorDAO proveedorDAO;
 
@@ -36,7 +39,9 @@ public class VentanaInventario extends JFrame {
     private String documentoIdSeleccionado = null;
 
     public VentanaInventario() {
-        productoDAO = new ProductoDAO();
+        FirebaseConfig.inicializar();
+
+        productoDAO = new ProductoFirestoreDAO();
         categoriaDAO = new CategoriaDAO();
         proveedorDAO = new ProveedorDAO();
 
@@ -47,7 +52,7 @@ public class VentanaInventario extends JFrame {
     }
 
     private void inicializarComponentes() {
-        setTitle("Inventario de una tienda - Firebase");
+        setTitle("Inventario de una tienda");
         setSize(1200, 700);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -58,12 +63,27 @@ public class VentanaInventario extends JFrame {
 
         // Panel central - Tabla
         add(crearPanelTabla(), BorderLayout.CENTER);
+        String[] columnas = {"ID", "Nombre", "Descripción", "Precio", "Stock",
+                "Stock Mín.", "Categoría", "Proveedor", "Código Barras", "DocID"}; // AGREGADO DocID
+
+        modeloTabla = new DefaultTableModel(columnas, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        tablaProductos = new JTable(modeloTabla);
 
         // Panel derecho - Formulario
         add(crearPanelFormulario(), BorderLayout.EAST);
 
         // Panel inferior - Estado
         add(crearPanelEstado(), BorderLayout.SOUTH);
+
+        tablaProductos.getColumnModel().getColumn(9).setMinWidth(0);
+        tablaProductos.getColumnModel().getColumn(9).setMaxWidth(0);
+        tablaProductos.getColumnModel().getColumn(9).setWidth(0);
     }
 
     private JPanel crearPanelBusqueda() {
@@ -284,20 +304,17 @@ public class VentanaInventario extends JFrame {
         List<Producto> productos = productoDAO.obtenerTodosLosProductos();
 
         for (Producto p : productos) {
-            // Usamos el código de barras como ID de documento temporalmente
-            // En una implementación real, deberías guardar el docId en el producto
-            String docId = p.getCodigoBarras(); // Ajustar según tu implementación
-
             Object[] fila = {
-                    docId, // Doc ID (columna oculta)
+                    p.getIdProducto(),
                     p.getNombreProducto(),
                     p.getDescripcion(),
                     String.format("$%.2f", p.getPrecioUnitario()),
                     p.getStockActual(),
                     p.getStockMinimo(),
-                    p.getNombreCategoria(),
-                    p.getNombreProveedor(),
-                    p.getCodigoBarras()
+                    p.getNombreCategoria() != null ? p.getNombreCategoria() : "N/A",
+                    p.getNombreProveedor() != null ? p.getNombreProveedor() : "N/A",
+                    p.getCodigoBarras(),
+                    p.getCodigoBarras() // COLUMNA OCULTA con el docId
             };
 
             modeloTabla.addRow(fila);
@@ -421,17 +438,20 @@ public class VentanaInventario extends JFrame {
 
     private void actualizarProducto() {
         int filaSeleccionada = tablaProductos.getSelectedRow();
-        if (filaSeleccionada == -1 || documentoIdSeleccionado == null) {
-            JOptionPane.showMessageDialog(this,
-                    "Seleccione un producto de la tabla");
+        if (filaSeleccionada == -1) {
+            JOptionPane.showMessageDialog(this, "Seleccione un producto de la tabla");
             return;
         }
 
         try {
+            // Obtener docId de la columna oculta
+            String docId = (String) modeloTabla.getValueAt(filaSeleccionada, 9);
+
             Categoria categoriaSeleccionada = (Categoria) cmbCategoria.getSelectedItem();
             Proveedor proveedorSeleccionado = (Proveedor) cmbProveedor.getSelectedItem();
 
             Producto producto = new Producto(
+                    0, // ID no se usa en Firestore
                     txtNombre.getText().trim(),
                     txtDescripcion.getText().trim(),
                     Double.parseDouble(txtPrecio.getText().trim()),
@@ -439,49 +459,47 @@ public class VentanaInventario extends JFrame {
                     Integer.parseInt(txtStockMinimo.getText().trim()),
                     categoriaSeleccionada.getIdCategoria(),
                     proveedorSeleccionado.getIdProveedor(),
-                    txtCodigoBarras.getText().trim()
+                    txtCodigoBarras.getText().trim(),
+                    true
             );
 
-            if (productoDAO.actualizarProducto(documentoIdSeleccionado, producto)) {
-                JOptionPane.showMessageDialog(this,
-                        "✅ Producto actualizado exitosamente");
+            if (productoDAO.actualizarProducto(docId, producto)) {
+                JOptionPane.showMessageDialog(this, "✅ Producto actualizado exitosamente");
                 limpiarCampos();
                 cargarDatos();
             } else {
-                JOptionPane.showMessageDialog(this,
-                        "❌ Error al actualizar producto");
+                JOptionPane.showMessageDialog(this, "❌ Error al actualizar producto");
             }
         } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this,
-                    "❌ Formato incorrecto en precio o cantidades");
+            JOptionPane.showMessageDialog(this, "❌ Formato incorrecto en precio o cantidades");
         }
     }
 
     private void eliminarProducto() {
         int filaSeleccionada = tablaProductos.getSelectedRow();
-        if (filaSeleccionada == -1 || documentoIdSeleccionado == null) {
-            JOptionPane.showMessageDialog(this,
-                    "Seleccione un producto de la tabla");
+        if (filaSeleccionada == -1) {
+            JOptionPane.showMessageDialog(this, "Seleccione un producto de la tabla");
             return;
         }
 
         int confirmacion = JOptionPane.showConfirmDialog(
                 this,
-                "¿Está seguro de eliminar este producto?\n(Se marcará como inactivo)",
+                "¿Está seguro de eliminar este producto?",
                 "Confirmar eliminación",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE
         );
 
         if (confirmacion == JOptionPane.YES_OPTION) {
-            if (productoDAO.eliminarProducto(documentoIdSeleccionado)) {
-                JOptionPane.showMessageDialog(this,
-                        "✅ Producto eliminado exitosamente");
+            // Obtener docId de la columna oculta
+            String docId = (String) modeloTabla.getValueAt(filaSeleccionada, 9);
+
+            if (productoDAO.eliminarProducto(docId)) {
+                JOptionPane.showMessageDialog(this, "✅ Producto eliminado exitosamente");
                 limpiarCampos();
                 cargarDatos();
             } else {
-                JOptionPane.showMessageDialog(this,
-                        "❌ Error al eliminar producto");
+                JOptionPane.showMessageDialog(this, "❌ Error al eliminar producto");
             }
         }
     }
@@ -489,10 +507,10 @@ public class VentanaInventario extends JFrame {
     private void cargarProductoSeleccionado() {
         int filaSeleccionada = tablaProductos.getSelectedRow();
         if (filaSeleccionada != -1) {
-            // Obtener el Doc ID de la columna oculta
-            documentoIdSeleccionado = (String) modeloTabla.getValueAt(filaSeleccionada, 0);
+            // Obtener el docId de la columna oculta (índice 9)
+            String docId = (String) modeloTabla.getValueAt(filaSeleccionada, 9);
 
-            Producto producto = productoDAO.obtenerProductoPorDocId(documentoIdSeleccionado);
+            Producto producto = productoDAO.obtenerProductoPorId(docId);
 
             if (producto != null) {
                 txtNombre.setText(producto.getNombreProducto());
@@ -502,6 +520,7 @@ public class VentanaInventario extends JFrame {
                 txtStockMinimo.setText(String.valueOf(producto.getStockMinimo()));
                 txtCodigoBarras.setText(producto.getCodigoBarras());
 
+                // Seleccionar categoría y proveedor en los ComboBox
                 for (int i = 0; i < cmbCategoria.getItemCount(); i++) {
                     if (cmbCategoria.getItemAt(i).getIdCategoria() == producto.getIdCategoria()) {
                         cmbCategoria.setSelectedIndex(i);

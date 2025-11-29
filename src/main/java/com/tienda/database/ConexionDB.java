@@ -6,7 +6,6 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.cloud.FirestoreClient;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -24,13 +23,13 @@ public class ConexionDB {
             // Opción 1: Desde archivo en resources
             InputStream serviceAccount = ConexionDB.class
                     .getClassLoader()
-                    .getResourceAsStream("firebase-credentials.json");
+                    .getResourceAsStream("serviceAccountKey.json");
 
             // Opción 2: Desde archivo en disco (si prefieres esta opción)
-            // FileInputStream serviceAccount = new FileInputStream("ruta/a/firebase-credentials.json");
+            // FileInputStream serviceAccount = new FileInputStream("ruta/a/serviceAccountKey.json");
 
             if (serviceAccount == null) {
-                throw new IOException("No se encontró el archivo firebase-credentials.json en resources");
+                throw new IOException("No se encontró el archivo serviceAccountKey.json en resources");
             }
 
             FirebaseOptions options = FirebaseOptions.builder()
@@ -47,7 +46,7 @@ public class ConexionDB {
         } catch (IOException e) {
             System.err.println("✗ Error al inicializar Firebase");
             System.err.println("  Verifica que:");
-            System.err.println("  1. El archivo firebase-credentials.json esté en src/main/resources/");
+            System.err.println("  1. El archivo serviceAccountKey.json esté en src/main/resources/");
             System.err.println("  2. Las credenciales sean válidas");
             e.printStackTrace();
         }

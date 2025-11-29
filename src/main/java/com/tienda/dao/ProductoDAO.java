@@ -341,25 +341,36 @@ public class ProductoDAO {
     }
 
     // Convertir DocumentSnapshot a Producto
-    private Producto documentToProducto(DocumentSnapshot document) {
-        try {
-            Producto producto = new Producto();
-            producto.setIdProducto(document.getLong("id_producto").longValue());
-            producto.setNombreProducto(document.getString("nombre_producto"));
-            producto.setDescripcion(document.getString("descripcion"));
-            producto.setPrecioUnitario(document.getDouble("precio_unitario"));
-            producto.setStockActual(document.getLong("stock_actual").intValue());
-            producto.setStockMinimo(document.getLong("stock_minimo").intValue());
-            producto.setIdCategoria(document.getLong("id_categoria").longValue());
-            producto.setIdProveedor(document.getLong("id_proveedor").longValue());
-            producto.setCodigoBarras(document.getString("codigo_barras"));
-            producto.setActivo(document.getBoolean("activo"));
-            producto.setNombreCategoria(document.getString("nombre_categoria"));
-            producto.setNombreProveedor(document.getString("nombre_proveedor"));
-            return producto;
-        } catch (Exception e) {
-            System.err.println("❌ Error al convertir documento: " + e.getMessage());
-            return null;
-        }
+    private Producto documentToProducto(DocumentSnapshot doc) {
+        Producto producto = new Producto();
+        producto.setNombreProducto(doc.getString("nombre_producto"));
+        producto.setDescripcion(doc.getString("descripcion"));
+
+        // Manejo seguro de valores nulos
+        Double precio = doc.getDouble("precio_unitario");
+        producto.setPrecioUnitario(precio != null ? precio : 0.0);
+
+        Long stockActual = doc.getLong("stock_actual");
+        producto.setStockActual(stockActual != null ? stockActual.intValue() : 0);
+
+        Long stockMinimo = doc.getLong("stock_minimo");
+        producto.setStockMinimo(stockMinimo != null ? stockMinimo.intValue() : 0);
+
+        Long idCategoria = doc.getLong("id_categoria");
+        producto.setIdCategoria(idCategoria != null ? idCategoria.intValue() : 0);
+
+        Long idProveedor = doc.getLong("id_proveedor");
+        producto.setIdProveedor(idProveedor != null ? idProveedor.intValue() : 0);
+
+        producto.setCodigoBarras(doc.getString("codigo_barras"));
+
+        Boolean activo = doc.getBoolean("activo");
+        producto.setActivo(activo != null ? activo : true);
+
+        // IMPORTANTE: Guardar el ID del documento de Firestore
+        producto.setIdProducto(doc.getId().hashCode());
+        producto.setCodigoBarras(doc.getId()); // USAR CÓDIGO DE BARRAS PARA GUARDAR EL DOC ID TEMPORALMENTE
+
+        return producto;
     }
 }
