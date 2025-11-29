@@ -2,55 +2,60 @@ package com.tienda.dao;
 
 import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.*;
-import com.tienda.firebase.FirebaseConfig;
+import com.tienda.database.FirestoreConfig;
 import com.tienda.modelo.Proveedor;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 public class ProveedorDAO {
-    private static final String COLLECTION = "proveedores";
-    private Firestore db;
+    private static final String COLLECTION_NAME = "proveedores";
+    private Firestore firestore;
 
     public ProveedorDAO() {
-        this.db = FirebaseConfig.getFirestore();
+        this.firestore = FirestoreConfig.getFirestore();
     }
 
-    // Obtener todos los proveedores
+    /**
+     * Obtener todos los proveedores
+     */
     public List<Proveedor> obtenerTodos() {
         List<Proveedor> proveedores = new ArrayList<>();
 
         try {
-            ApiFuture<QuerySnapshot> future = db.collection(COLLECTION)
+            ApiFuture<QuerySnapshot> future = firestore.collection(COLLECTION_NAME)
                     .orderBy("nombreProveedor")
                     .get();
 
-            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+            QuerySnapshot querySnapshot = future.get();
 
-            for (DocumentSnapshot document : documents) {
+            for (QueryDocumentSnapshot document : querySnapshot.getDocuments()) {
                 Proveedor proveedor = documentToProveedor(document);
                 if (proveedor != null) {
                     proveedores.add(proveedor);
                 }
             }
 
-        } catch (InterruptedException | ExecutionException e) {
-            System.err.println("Error al obtener proveedores: " + e.getMessage());
+            System.out.println("✓ Se obtuvieron " + proveedores.size() + " proveedores");
+
+        } catch (Exception e) {
+            System.err.println("✗ Error al obtener proveedores: " + e.getMessage());
+            e.printStackTrace();
         }
 
         return proveedores;
     }
 
-    // Agregar nuevo proveedor
+    /**
+     * Agregar nuevo proveedor
+     */
     public boolean agregar(Proveedor proveedor) {
         try {
-            Map<String, Object> data = proveedorAMap(proveedor);
-            data.put("fechaRegistro", FieldValue.serverTimestamp());
+            Map<String, Object> data = proveedorToMap(proveedor);
 
-            ApiFuture<DocumentReference> future = db.collection(COLLECTION).add(data);
+            ApiFuture<DocumentReference> future = firestore.collection(COLLECTION_NAME).add(data);
             DocumentReference docRef = future.get();
 
             // Guardar el ID generado
@@ -59,160 +64,175 @@ public class ProveedorDAO {
             System.out.println("✓ Proveedor agregado con ID: " + docRef.getId());
             return true;
 
-        } catch (InterruptedException | ExecutionException e) {
-            System.err.println("Error al agregar proveedor: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("✗ Error al agregar proveedor: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
 
-    // Obtener proveedor por ID del documento
-    public Proveedor obtenerPorDocId(String docId) {
-        try {
-            DocumentReference docRef = db.collection(COLLECTION).document(docId);
-            ApiFuture<DocumentSnapshot> future = docRef.get();
-            DocumentSnapshot document = future.get();
-
-            if (document.exists()) {
-                return documentToProveedor(document);
-            }
-
-        } catch (InterruptedException | ExecutionException e) {
-            System.err.println("Error al obtener proveedor: " + e.getMessage());
-        }
-
-        return null;
-    }
-
-    // Obtener proveedor por ID numérico
+    /**
+     * Obtener proveedor por ID
+     */
     public Proveedor obtenerPorId(int id) {
-        List<Proveedor> todos = obtenerTodos();
-        for (Proveedor prov : todos) {
-            if (prov.getIdProveedor() == id) {
-                return prov;
+        try {
+            ApiFuture<QuerySnapshot> future = firestore.collection(COLLECTION_NAME)
+                    .whereEqualTo("idProveedor", id)
+                    .limit(1)
+                    .get();
+
+            QuerySnapshot querySnapshot = future.get();
+
+            if (!querySnapshot.isEmpty()) {
+                return documentToProveedor(querySnapshot.getDocuments().get(0));
             }
+
+        } catch (Exception e) {
+            System.err.println("✗ Error al obtener proveedor: " + e.getMessage());
         }
+
         return null;
     }
 
-    // Actualizar proveedor
-    public boolean actualizar(String docId, Proveedor proveedor) {
+    /**
+     * Actualizar proveedor
+     */
+    public boolean actualizar(Proveedor proveedor) {
         try {
-            DocumentReference docRef = db.collection(COLLECTION).document(docId);
-            Map<String, Object> data = proveedorAMap(proveedor);
+            ApiFuture<QuerySnapshot> future = firestore.collection(COLLECTION_NAME)
+                    .whereEqualTo("idProveedor", proveedor.getIdProveedor())
+                    .limit(1)
+                    .get();
 
-            ApiFuture<WriteResult> future = docRef.set(data, SetOptions.merge());
-            future.get();
+            QuerySnapshot querySnapshot = future.get();
 
-            System.out.println("✓ Proveedor actualizado");
-            return true;
+            if (!querySnapshot.isEmpty()) {
+                String docId = querySnapshot.getDocuments().get(0).getId();
+                Map<String, Object> data = proveedorToMap(proveedor);
 
-        } catch (InterruptedException | ExecutionException e) {
-            System.err.println("Error al actualizar proveedor: " + e.getMessage());
-            return false;
-        }
-    }
+                ApiFuture<WriteResult> writeResult = firestore.collection(COLLECTION_NAME)
+                        .document(docId)
+                        .set(data);
 
-    // Eliminar proveedor
-    public boolean eliminar(String docId) {
-        try {
-            DocumentReference docRef = db.collection(COLLECTION).document(docId);
-            ApiFuture<WriteResult> future = docRef.delete();
-            future.get();
-
-            System.out.println("✓ Proveedor eliminado");
-            return true;
-
-        } catch (InterruptedException | ExecutionException e) {
-            System.err.println("Error al eliminar proveedor: " + e.getMessage());
-            if (e.getMessage().contains("foreign key") || e.getMessage().contains("constraint")) {
-                System.err.println("No se puede eliminar: hay productos asociados a este proveedor");
+                writeResult.get();
+                System.out.println("✓ Proveedor actualizado");
+                return true;
             }
-            return false;
+
+        } catch (Exception e) {
+            System.err.println("✗ Error al actualizar proveedor: " + e.getMessage());
         }
+
+        return false;
     }
 
-    // Buscar proveedores por nombre
+    /**
+     * Eliminar proveedor
+     */
+    public boolean eliminar(int id) {
+        try {
+            ApiFuture<QuerySnapshot> future = firestore.collection(COLLECTION_NAME)
+                    .whereEqualTo("idProveedor", id)
+                    .limit(1)
+                    .get();
+
+            QuerySnapshot querySnapshot = future.get();
+
+            if (!querySnapshot.isEmpty()) {
+                String docId = querySnapshot.getDocuments().get(0).getId();
+
+                ApiFuture<WriteResult> writeResult = firestore.collection(COLLECTION_NAME)
+                        .document(docId)
+                        .delete();
+
+                writeResult.get();
+                System.out.println("✓ Proveedor eliminado");
+                return true;
+            }
+
+        } catch (Exception e) {
+            System.err.println("✗ Error al eliminar proveedor: " + e.getMessage());
+            if (e.getMessage().contains("FAILED_PRECONDITION")) {
+                System.err.println("  Puede que haya productos asociados a este proveedor");
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Buscar proveedores por nombre
+     */
     public List<Proveedor> buscarPorNombre(String nombre) {
         List<Proveedor> proveedores = new ArrayList<>();
 
         try {
-            List<Proveedor> todos = obtenerTodos();
-            String nombreLower = nombre.toLowerCase();
+            ApiFuture<QuerySnapshot> future = firestore.collection(COLLECTION_NAME).get();
+            QuerySnapshot querySnapshot = future.get();
 
-            for (Proveedor p : todos) {
-                if (p.getNombreProveedor().toLowerCase().contains(nombreLower)) {
-                    proveedores.add(p);
+            for (QueryDocumentSnapshot document : querySnapshot.getDocuments()) {
+                Proveedor proveedor = documentToProveedor(document);
+                if (proveedor != null &&
+                        proveedor.getNombreProveedor().toLowerCase().contains(nombre.toLowerCase())) {
+                    proveedores.add(proveedor);
                 }
             }
 
         } catch (Exception e) {
-            System.err.println("Error al buscar proveedores: " + e.getMessage());
+            System.err.println("✗ Error al buscar proveedores: " + e.getMessage());
         }
 
         return proveedores;
     }
 
-    // Contar productos de un proveedor
+    /**
+     * Contar productos de un proveedor
+     */
     public int contarProductos(int idProveedor) {
         try {
-            ApiFuture<QuerySnapshot> future = db.collection("productos")
+            ApiFuture<QuerySnapshot> future = firestore.collection("productos")
                     .whereEqualTo("idProveedor", idProveedor)
                     .whereEqualTo("activo", true)
                     .get();
 
             return future.get().size();
 
-        } catch (InterruptedException | ExecutionException e) {
-            System.err.println("Error al contar productos: " + e.getMessage());
-            return 0;
+        } catch (Exception e) {
+            System.err.println("✗ Error al contar productos: " + e.getMessage());
         }
+
+        return 0;
     }
 
-    // Convertir Proveedor a Map
-    private Map<String, Object> proveedorAMap(Proveedor p) {
+    // ==================== MÉTODOS AUXILIARES ====================
+
+    private Map<String, Object> proveedorToMap(Proveedor proveedor) {
         Map<String, Object> data = new HashMap<>();
-        data.put("nombreProveedor", p.getNombreProveedor());
-        data.put("telefono", p.getTelefono());
-        data.put("email", p.getEmail());
-        data.put("direccion", p.getDireccion());
-        data.put("ciudad", p.getCiudad());
-        data.put("pais", p.getPais());
+        data.put("idProveedor", proveedor.getIdProveedor());
+        data.put("nombreProveedor", proveedor.getNombreProveedor());
+        data.put("telefono", proveedor.getTelefono());
+        data.put("email", proveedor.getEmail());
+        data.put("direccion", proveedor.getDireccion());
+        data.put("ciudad", proveedor.getCiudad());
+        data.put("pais", proveedor.getPais());
+        data.put("fechaRegistro", System.currentTimeMillis());
         return data;
     }
 
-    // Convertir DocumentSnapshot a Proveedor
-    private Proveedor documentToProveedor(DocumentSnapshot doc) {
+    private Proveedor documentToProveedor(DocumentSnapshot document) {
         try {
-            int id = doc.getId().hashCode();
-            String nombreProveedor = doc.getString("nombreProveedor");
-            String telefono = doc.getString("telefono");
-            String email = doc.getString("email");
-            String direccion = doc.getString("direccion");
-            String ciudad = doc.getString("ciudad");
-            String pais = doc.getString("pais");
-
-            Proveedor proveedor = new Proveedor(
-                    id,
-                    nombreProveedor,
-                    telefono,
-                    email,
-                    direccion,
-                    ciudad,
-                    pais
-            );
-
-            // Fecha de registro
-            com.google.cloud.Timestamp timestamp = doc.getTimestamp("fechaRegistro");
-            if (timestamp != null) {
-                proveedor.setFechaRegistro(new java.sql.Timestamp(timestamp.toDate().getTime()));
-            }
-
+            Proveedor proveedor = new Proveedor();
+            proveedor.setIdProveedor(document.getLong("idProveedor") != null ?
+                    document.getLong("idProveedor").intValue() : 0);
+            proveedor.setNombreProveedor(document.getString("nombreProveedor"));
+            proveedor.setTelefono(document.getString("telefono"));
+            proveedor.setEmail(document.getString("email"));
+            proveedor.setDireccion(document.getString("direccion"));
+            proveedor.setCiudad(document.getString("ciudad"));
+            proveedor.setPais(document.getString("pais"));
             return proveedor;
-
         } catch (Exception e) {
-            System.err.println("❌ Error al convertir documento de proveedor: " + e.getMessage());
-            System.err.println("   Documento ID: " + doc.getId());
-            e.printStackTrace();
+            System.err.println("✗ Error al convertir documento a proveedor: " + e.getMessage());
             return null;
         }
     }

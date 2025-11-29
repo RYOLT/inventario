@@ -2,7 +2,6 @@ package com.tienda.util;
 
 import com.tienda.dao.CategoriaDAO;
 import com.tienda.dao.ProveedorDAO;
-import com.tienda.database.ConexionDB;
 import com.tienda.modelo.Categoria;
 import com.tienda.modelo.Proveedor;
 
