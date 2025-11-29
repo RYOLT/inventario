@@ -79,7 +79,7 @@ public class VentanaInventario extends JFrame {
         add(crearPanelFormulario(), BorderLayout.EAST);
 
         // Panel inferior - Estado
-        add(crearPanelEstado(), BorderLayout.SOUTH);
+        //add(crearPanelEstado(), BorderLayout.SOUTH);
 
         tablaProductos.getColumnModel().getColumn(9).setMinWidth(0);
         tablaProductos.getColumnModel().getColumn(9).setMaxWidth(0);
@@ -253,18 +253,6 @@ public class VentanaInventario extends JFrame {
         gbc.gridwidth = 2;
         gbc.insets = new Insets(15, 5, 5, 5);
         panel.add(panelBotones, gbc);
-
-        return panel;
-    }
-
-    private JPanel crearPanelEstado() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        panel.setBorder(BorderFactory.createEtchedBorder());
-
-        JLabel lblEstado = new JLabel("✅ Conectado a: Firebase Firestore");
-        lblEstado.setFont(new Font("Arial", Font.BOLD, 12));
-        lblEstado.setForeground(new Color(0, 150, 0));
-        panel.add(lblEstado);
 
         return panel;
     }

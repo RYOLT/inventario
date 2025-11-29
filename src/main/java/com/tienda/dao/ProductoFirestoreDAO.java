@@ -48,24 +48,24 @@ public class ProductoFirestoreDAO {
         List<Producto> productos = new ArrayList<>();
 
         try {
-            System.out.println("🔍 Intentando obtener productos de Firestore...");
+//            System.out.println("🔍 Intentando obtener productos de Firestore...");
 
             QuerySnapshot querySnapshot = db.collection("productos")
                     .whereEqualTo("activo", true)
                     .get()
                     .get();
 
-            System.out.println("📊 Documentos encontrados: " + querySnapshot.size());
+//            System.out.println("📊 Documentos encontrados: " + querySnapshot.size());
 
             for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
-                System.out.println("📦 Documento ID: " + doc.getId());
-                System.out.println("   Datos: " + doc.getData());
+//                System.out.println("📦 Documento ID: " + doc.getId());
+//                System.out.println("   Datos: " + doc.getData());
 
                 Producto producto = documentToProducto(doc);
                 productos.add(producto);
             }
 
-            System.out.println("✅ Total productos cargados: " + productos.size());
+//            System.out.println("✅ Total productos cargados: " + productos.size());
 
         } catch (InterruptedException | ExecutionException e) {
             System.err.println("❌ Error al obtener productos: " + e.getMessage());
