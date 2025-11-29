@@ -1,347 +1,670 @@
 package com.tienda.dao;
 
-import com.tienda.database.ConexionDB;
+import com.google.api.core.ApiFuture;
+import com.google.cloud.Timestamp;
+import com.google.cloud.firestore.*;
+import com.tienda.database.FirestoreConfig;
 import com.tienda.modelo.Producto;
 
-import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
+/**
+ * DAO para gestionar Productos en Firebase Firestore
+ * Reemplaza la versión con MySQL/JDBC
+ */
 public class ProductoDAO {
 
-    // Crear producto con validación de FK
-    public boolean agregarProducto(Producto producto) {
-        String sql = "INSERT INTO productos (nombre_producto, descripcion, precio_unitario, " +
-                "stock_actual, stock_minimo, id_categoria, id_proveedor, codigo_barras, activo) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    private static final String COLLECTION_NAME = "productos";
+    private Firestore db;
 
-        try (Connection conn = ConexionDB.getConexion();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
-            pstmt.setString(1, producto.getNombreProducto());
-            pstmt.setString(2, producto.getDescripcion());
-            pstmt.setDouble(3, producto.getPrecioUnitario());
-            pstmt.setInt(4, producto.getStockActual());
-            pstmt.setInt(5, producto.getStockMinimo());
-            pstmt.setInt(6, producto.getIdCategoria());
-            pstmt.setInt(7, producto.getIdProveedor());
-            pstmt.setString(8, producto.getCodigoBarras());
-            pstmt.setBoolean(9, producto.isActivo());
-
-            int filasAfectadas = pstmt.executeUpdate();
-
-            if (filasAfectadas > 0) {
-                // Obtener el ID generado
-                ResultSet rs = pstmt.getGeneratedKeys();
-                if (rs.next()) {
-                    producto.setIdProducto(rs.getInt(1));
-                }
-                return true;
-            }
-
-        } catch (SQLException e) {
-            System.err.println("Error al agregar producto: " + e.getMessage());
-            if (e.getMessage().contains("foreign key")) {
-                System.err.println("  Verifica que la categoría y proveedor existan");
-            }
+    public ProductoDAO() {
+        this.db = FirestoreConfig.getDatabase();
+        if (this.db == null) {
+            System.err.println("⚠️ Error: Firestore no está inicializado en ProductoDAO");
         }
-        return false;
     }
 
-    // Obtener todos los productos con JOIN para mostrar nombres de categoría y proveedor
+    /**
+     * Agregar producto con validación de FK
+     */
+    public boolean agregarProducto(Producto producto) {
+        if (db == null) {
+            System.err.println("❌ Error: No hay conexión a Firestore");
+            return false;
+        }
+
+        try {
+            // Verificar que existan la categoría y el proveedor
+            if (!existeCategoria(producto.getIdCategoria())) {
+                System.err.println("❌ Error: La categoría no existe");
+                return false;
+            }
+
+            if (!existeProveedor(producto.getIdProveedor())) {
+                System.err.println("❌ Error: El proveedor no existe");
+                return false;
+            }
+
+            // Crear mapa con los datos del producto
+            Map<String, Object> data = new HashMap<>();
+            data.put("nombre_producto", producto.getNombreProducto());
+            data.put("descripcion", producto.getDescripcion() != null ? producto.getDescripcion() : "");
+            data.put("precio_unitario", producto.getPrecioUnitario());
+            data.put("stock_actual", producto.getStockActual());
+            data.put("stock_minimo", producto.getStockMinimo());
+            data.put("id_categoria", producto.getIdCategoria());
+            data.put("id_proveedor", producto.getIdProveedor());
+            data.put("codigo_barras", producto.getCodigoBarras() != null ? producto.getCodigoBarras() : "");
+            data.put("activo", producto.isActivo());
+            data.put("fecha_registro", Timestamp.now());
+            data.put("ultima_actualizacion", Timestamp.now());
+
+            // Agregar documento a Firestore
+            ApiFuture<DocumentReference> future = db.collection(COLLECTION_NAME).add(data);
+            DocumentReference docRef = future.get();
+
+            // Asignar el ID generado
+            String firestoreId = docRef.getId();
+            producto.setIdProducto(firestoreId.hashCode());
+
+            // Guardar el ID de Firestore y numérico en el documento
+            Map<String, Object> idUpdate = new HashMap<>();
+            idUpdate.put("firestore_id", firestoreId);
+            idUpdate.put("id_producto", producto.getIdProducto());
+            docRef.update(idUpdate);
+
+            System.out.println("✓ Producto agregado con ID: " + firestoreId);
+            return true;
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("❌ Error al agregar producto: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Obtener todos los productos activos con información de categoría y proveedor
+     */
     public List<Producto> obtenerTodosLosProductos() {
         List<Producto> productos = new ArrayList<>();
-        String sql = """
-                SELECT p.*, c.nombre_categoria, pr.nombre_proveedor
-                FROM productos p
-                INNER JOIN categorias c ON p.id_categoria = c.id_categoria
-                INNER JOIN proveedores pr ON p.id_proveedor = pr.id_proveedor
-                WHERE p.activo = true
-                ORDER BY p.nombre_producto
-                """;
 
-        try (Connection conn = ConexionDB.getConexion();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+        if (db == null) {
+            System.err.println("❌ Error: No hay conexión a Firestore");
+            return productos;
+        }
 
-            while (rs.next()) {
-                Producto producto = crearProductoDesdeResultSet(rs);
-                productos.add(producto);
+        try {
+            // Consulta de productos activos ordenados por nombre
+            ApiFuture<QuerySnapshot> future = db.collection(COLLECTION_NAME)
+                    .whereEqualTo("activo", true)
+                    .orderBy("nombre_producto", Query.Direction.ASCENDING)
+                    .get();
+
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+
+            // Obtener categorías y proveedores una sola vez
+            Map<Integer, String> categoriasMap = obtenerCategoriasMap();
+            Map<Integer, String> proveedoresMap = obtenerProveedoresMap();
+
+            // Convertir documentos a objetos Producto
+            for (QueryDocumentSnapshot document : documents) {
+                Producto producto = documentToProducto(document, categoriasMap, proveedoresMap);
+                if (producto != null) {
+                    productos.add(producto);
+                }
             }
 
-        } catch (SQLException e) {
-            System.err.println("Error al obtener productos: " + e.getMessage());
+            System.out.println("✓ Se obtuvieron " + productos.size() + " productos de Firestore");
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("❌ Error al obtener productos: " + e.getMessage());
+            e.printStackTrace();
         }
 
         return productos;
     }
 
-    // Buscar productos por nombre con JOIN
+    /**
+     * Buscar productos por nombre
+     */
     public List<Producto> buscarPorNombre(String nombre) {
         List<Producto> productos = new ArrayList<>();
-        String sql = """
-                SELECT p.*, c.nombre_categoria, pr.nombre_proveedor
-                FROM productos p
-                INNER JOIN categorias c ON p.id_categoria = c.id_categoria
-                INNER JOIN proveedores pr ON p.id_proveedor = pr.id_proveedor
-                WHERE p.nombre_producto LIKE ? AND p.activo = true
-                ORDER BY p.nombre_producto
-                """;
 
-        try (Connection conn = ConexionDB.getConexion();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        if (db == null) {
+            System.err.println("❌ Error: No hay conexión a Firestore");
+            return productos;
+        }
 
-            pstmt.setString(1, "%" + nombre + "%");
-            ResultSet rs = pstmt.executeQuery();
+        try {
+            String nombreBusqueda = nombre.toLowerCase();
 
-            while (rs.next()) {
-                Producto producto = crearProductoDesdeResultSet(rs);
-                productos.add(producto);
+            ApiFuture<QuerySnapshot> future = db.collection(COLLECTION_NAME)
+                    .whereEqualTo("activo", true)
+                    .get();
+
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+
+            Map<Integer, String> categoriasMap = obtenerCategoriasMap();
+            Map<Integer, String> proveedoresMap = obtenerProveedoresMap();
+
+            // Filtrar por nombre (Firestore no tiene búsqueda LIKE nativa)
+            for (QueryDocumentSnapshot document : documents) {
+                String nombreProducto = document.getString("nombre_producto");
+                if (nombreProducto != null &&
+                        nombreProducto.toLowerCase().contains(nombreBusqueda)) {
+                    Producto producto = documentToProducto(document, categoriasMap, proveedoresMap);
+                    if (producto != null) {
+                        productos.add(producto);
+                    }
+                }
             }
 
-        } catch (SQLException e) {
-            System.err.println("Error al buscar productos: " + e.getMessage());
+            System.out.println("✓ Se encontraron " + productos.size() + " productos");
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("❌ Error al buscar productos: " + e.getMessage());
+            e.printStackTrace();
         }
 
         return productos;
     }
 
-    // Buscar por categoría
+    /**
+     * Buscar productos por categoría
+     */
     public List<Producto> buscarPorCategoria(int idCategoria) {
         List<Producto> productos = new ArrayList<>();
-        String sql = """
-                SELECT p.*, c.nombre_categoria, pr.nombre_proveedor
-                FROM productos p
-                INNER JOIN categorias c ON p.id_categoria = c.id_categoria
-                INNER JOIN proveedores pr ON p.id_proveedor = pr.id_proveedor
-                WHERE p.id_categoria = ? AND p.activo = true
-                ORDER BY p.nombre_producto
-                """;
 
-        try (Connection conn = ConexionDB.getConexion();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        if (db == null) {
+            System.err.println("❌ Error: No hay conexión a Firestore");
+            return productos;
+        }
 
-            pstmt.setInt(1, idCategoria);
-            ResultSet rs = pstmt.executeQuery();
+        try {
+            ApiFuture<QuerySnapshot> future = db.collection(COLLECTION_NAME)
+                    .whereEqualTo("id_categoria", idCategoria)
+                    .whereEqualTo("activo", true)
+                    .orderBy("nombre_producto", Query.Direction.ASCENDING)
+                    .get();
 
-            while (rs.next()) {
-                Producto producto = crearProductoDesdeResultSet(rs);
-                productos.add(producto);
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+
+            Map<Integer, String> categoriasMap = obtenerCategoriasMap();
+            Map<Integer, String> proveedoresMap = obtenerProveedoresMap();
+
+            for (QueryDocumentSnapshot document : documents) {
+                Producto producto = documentToProducto(document, categoriasMap, proveedoresMap);
+                if (producto != null) {
+                    productos.add(producto);
+                }
             }
 
-        } catch (SQLException e) {
-            System.err.println("Error al buscar por categoría: " + e.getMessage());
+            System.out.println("✓ Se encontraron " + productos.size() + " productos en la categoría");
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("❌ Error al buscar por categoría: " + e.getMessage());
+            e.printStackTrace();
         }
 
         return productos;
     }
 
-    // Obtener productos con stock bajo
+    /**
+     * Obtener productos con stock bajo
+     */
     public List<Producto> obtenerProductosStockBajo() {
         List<Producto> productos = new ArrayList<>();
-        String sql = """
-                SELECT p.*, c.nombre_categoria, pr.nombre_proveedor
-                FROM productos p
-                INNER JOIN categorias c ON p.id_categoria = c.id_categoria
-                INNER JOIN proveedores pr ON p.id_proveedor = pr.id_proveedor
-                WHERE p.stock_actual <= p.stock_minimo AND p.activo = true
-                ORDER BY p.stock_actual
-                """;
 
-        try (Connection conn = ConexionDB.getConexion();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+        if (db == null) {
+            System.err.println("❌ Error: No hay conexión a Firestore");
+            return productos;
+        }
 
-            while (rs.next()) {
-                Producto producto = crearProductoDesdeResultSet(rs);
-                productos.add(producto);
+        try {
+            // Firestore no permite comparaciones entre campos en la consulta
+            // Necesitamos obtener todos y filtrar manualmente
+            ApiFuture<QuerySnapshot> future = db.collection(COLLECTION_NAME)
+                    .whereEqualTo("activo", true)
+                    .get();
+
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+
+            Map<Integer, String> categoriasMap = obtenerCategoriasMap();
+            Map<Integer, String> proveedoresMap = obtenerProveedoresMap();
+
+            for (QueryDocumentSnapshot document : documents) {
+                Long stockActual = document.getLong("stock_actual");
+                Long stockMinimo = document.getLong("stock_minimo");
+
+                // Filtrar productos con stock bajo
+                if (stockActual != null && stockMinimo != null &&
+                        stockActual <= stockMinimo) {
+                    Producto producto = documentToProducto(document, categoriasMap, proveedoresMap);
+                    if (producto != null) {
+                        productos.add(producto);
+                    }
+                }
             }
 
-        } catch (SQLException e) {
-            System.err.println("Error al obtener productos con stock bajo: " + e.getMessage());
+            // Ordenar por stock actual ascendente
+            productos.sort((p1, p2) -> Integer.compare(p1.getStockActual(), p2.getStockActual()));
+
+            System.out.println("✓ Se encontraron " + productos.size() + " productos con stock bajo");
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("❌ Error al obtener productos con stock bajo: " + e.getMessage());
+            e.printStackTrace();
         }
 
         return productos;
     }
 
-    // Obtener producto por ID
+    /**
+     * Obtener producto por ID
+     */
     public Producto obtenerProductoPorId(int id) {
-        String sql = """
-                SELECT p.*, c.nombre_categoria, pr.nombre_proveedor
-                FROM productos p
-                INNER JOIN categorias c ON p.id_categoria = c.id_categoria
-                INNER JOIN proveedores pr ON p.id_proveedor = pr.id_proveedor
-                WHERE p.id_producto = ?
-                """;
+        if (db == null) {
+            System.err.println("❌ Error: No hay conexión a Firestore");
+            return null;
+        }
 
-        try (Connection conn = ConexionDB.getConexion();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        try {
+            ApiFuture<QuerySnapshot> future = db.collection(COLLECTION_NAME)
+                    .whereEqualTo("id_producto", id)
+                    .limit(1)
+                    .get();
 
-            pstmt.setInt(1, id);
-            ResultSet rs = pstmt.executeQuery();
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
 
-            if (rs.next()) {
-                return crearProductoDesdeResultSet(rs);
+            if (!documents.isEmpty()) {
+                Map<Integer, String> categoriasMap = obtenerCategoriasMap();
+                Map<Integer, String> proveedoresMap = obtenerProveedoresMap();
+                return documentToProducto(documents.get(0), categoriasMap, proveedoresMap);
             }
 
-        } catch (SQLException e) {
-            System.err.println("Error al obtener producto por ID: " + e.getMessage());
+            System.out.println("⚠️ No se encontró producto con ID: " + id);
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("❌ Error al obtener producto por ID: " + e.getMessage());
+            e.printStackTrace();
         }
 
         return null;
     }
 
-    // Actualizar producto
+    /**
+     * Actualizar producto
+     */
     public boolean actualizarProducto(Producto producto) {
-        String sql = """
-                UPDATE productos 
-                SET nombre_producto = ?, descripcion = ?, precio_unitario = ?, 
-                    stock_actual = ?, stock_minimo = ?, id_categoria = ?, 
-                    id_proveedor = ?, codigo_barras = ?, activo = ?
-                WHERE id_producto = ?
-                """;
-
-        try (Connection conn = ConexionDB.getConexion();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, producto.getNombreProducto());
-            pstmt.setString(2, producto.getDescripcion());
-            pstmt.setDouble(3, producto.getPrecioUnitario());
-            pstmt.setInt(4, producto.getStockActual());
-            pstmt.setInt(5, producto.getStockMinimo());
-            pstmt.setInt(6, producto.getIdCategoria());
-            pstmt.setInt(7, producto.getIdProveedor());
-            pstmt.setString(8, producto.getCodigoBarras());
-            pstmt.setBoolean(9, producto.isActivo());
-            pstmt.setInt(10, producto.getIdProducto());
-
-            return pstmt.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            System.err.println("Error al actualizar producto: " + e.getMessage());
+        if (db == null) {
+            System.err.println("❌ Error: No hay conexión a Firestore");
             return false;
         }
-    }
 
-    // Eliminar producto (soft delete - no elimina físicamente)
-    public boolean eliminarProducto(int id) {
-        String sql = "UPDATE productos SET activo = false WHERE id_producto = ?";
-
-        try (Connection conn = ConexionDB.getConexion();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setInt(1, id);
-            return pstmt.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            System.err.println("Error al eliminar producto: " + e.getMessage());
-            return false;
-        }
-    }
-
-    // Buscar por código de barras
-    public Producto buscarPorCodigoBarras(String codigoBarras) {
-        String sql = """
-                SELECT p.*, c.nombre_categoria, pr.nombre_proveedor
-                FROM productos p
-                INNER JOIN categorias c ON p.id_categoria = c.id_categoria
-                INNER JOIN proveedores pr ON p.id_proveedor = pr.id_proveedor
-                WHERE p.codigo_barras = ? AND p.activo = true
-                """;
-
-        try (Connection conn = ConexionDB.getConexion();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, codigoBarras);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                return crearProductoDesdeResultSet(rs);
+        try {
+            // Verificar que existan la categoría y el proveedor
+            if (!existeCategoria(producto.getIdCategoria())) {
+                System.err.println("❌ Error: La categoría no existe");
+                return false;
             }
 
-        } catch (SQLException e) {
-            System.err.println("Error al buscar por código de barras: " + e.getMessage());
+            if (!existeProveedor(producto.getIdProveedor())) {
+                System.err.println("❌ Error: El proveedor no existe");
+                return false;
+            }
+
+            // Buscar el documento por id_producto
+            ApiFuture<QuerySnapshot> future = db.collection(COLLECTION_NAME)
+                    .whereEqualTo("id_producto", producto.getIdProducto())
+                    .limit(1)
+                    .get();
+
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+
+            if (documents.isEmpty()) {
+                System.err.println("❌ No se encontró el producto para actualizar");
+                return false;
+            }
+
+            String docId = documents.get(0).getId();
+
+            // Preparar datos a actualizar
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("nombre_producto", producto.getNombreProducto());
+            updates.put("descripcion", producto.getDescripcion() != null ? producto.getDescripcion() : "");
+            updates.put("precio_unitario", producto.getPrecioUnitario());
+            updates.put("stock_actual", producto.getStockActual());
+            updates.put("stock_minimo", producto.getStockMinimo());
+            updates.put("id_categoria", producto.getIdCategoria());
+            updates.put("id_proveedor", producto.getIdProveedor());
+            updates.put("codigo_barras", producto.getCodigoBarras() != null ? producto.getCodigoBarras() : "");
+            updates.put("activo", producto.isActivo());
+            updates.put("ultima_actualizacion", Timestamp.now());
+
+            // Actualizar el documento
+            ApiFuture<WriteResult> writeResult = db.collection(COLLECTION_NAME)
+                    .document(docId)
+                    .update(updates);
+
+            writeResult.get();
+
+            System.out.println("✓ Producto actualizado: " + producto.getNombreProducto());
+            return true;
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("❌ Error al actualizar producto: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Eliminar producto (soft delete)
+     */
+    public boolean eliminarProducto(int id) {
+        if (db == null) {
+            System.err.println("❌ Error: No hay conexión a Firestore");
+            return false;
+        }
+
+        try {
+            ApiFuture<QuerySnapshot> future = db.collection(COLLECTION_NAME)
+                    .whereEqualTo("id_producto", id)
+                    .limit(1)
+                    .get();
+
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+
+            if (documents.isEmpty()) {
+                System.err.println("❌ No se encontró el producto para eliminar");
+                return false;
+            }
+
+            String docId = documents.get(0).getId();
+
+            // Soft delete: marcar como inactivo
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("activo", false);
+            updates.put("ultima_actualizacion", Timestamp.now());
+
+            ApiFuture<WriteResult> writeResult = db.collection(COLLECTION_NAME)
+                    .document(docId)
+                    .update(updates);
+
+            writeResult.get();
+
+            System.out.println("✓ Producto eliminado (marcado como inactivo) con ID: " + id);
+            return true;
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("❌ Error al eliminar producto: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Buscar producto por código de barras
+     */
+    public Producto buscarPorCodigoBarras(String codigoBarras) {
+        if (db == null) {
+            System.err.println("❌ Error: No hay conexión a Firestore");
+            return null;
+        }
+
+        try {
+            ApiFuture<QuerySnapshot> future = db.collection(COLLECTION_NAME)
+                    .whereEqualTo("codigo_barras", codigoBarras)
+                    .whereEqualTo("activo", true)
+                    .limit(1)
+                    .get();
+
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+
+            if (!documents.isEmpty()) {
+                Map<Integer, String> categoriasMap = obtenerCategoriasMap();
+                Map<Integer, String> proveedoresMap = obtenerProveedoresMap();
+                return documentToProducto(documents.get(0), categoriasMap, proveedoresMap);
+            }
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("❌ Error al buscar por código de barras: " + e.getMessage());
+            e.printStackTrace();
         }
 
         return null;
     }
 
-    // Actualizar stock de un producto
+    /**
+     * Actualizar solo el stock de un producto
+     */
     public boolean actualizarStock(int idProducto, int nuevoStock) {
-        String sql = "UPDATE productos SET stock_actual = ? WHERE id_producto = ?";
+        if (db == null) {
+            System.err.println("❌ Error: No hay conexión a Firestore");
+            return false;
+        }
 
-        try (Connection conn = ConexionDB.getConexion();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        try {
+            ApiFuture<QuerySnapshot> future = db.collection(COLLECTION_NAME)
+                    .whereEqualTo("id_producto", idProducto)
+                    .limit(1)
+                    .get();
 
-            pstmt.setInt(1, nuevoStock);
-            pstmt.setInt(2, idProducto);
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
 
-            return pstmt.executeUpdate() > 0;
+            if (documents.isEmpty()) {
+                System.err.println("❌ No se encontró el producto");
+                return false;
+            }
 
-        } catch (SQLException e) {
-            System.err.println("Error al actualizar stock: " + e.getMessage());
+            String docId = documents.get(0).getId();
+
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("stock_actual", nuevoStock);
+            updates.put("ultima_actualizacion", Timestamp.now());
+
+            ApiFuture<WriteResult> writeResult = db.collection(COLLECTION_NAME)
+                    .document(docId)
+                    .update(updates);
+
+            writeResult.get();
+
+            System.out.println("✓ Stock actualizado a: " + nuevoStock);
+            return true;
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("❌ Error al actualizar stock: " + e.getMessage());
             return false;
         }
     }
 
-    // Obtener total de productos activos
+    /**
+     * Contar productos activos
+     */
     public int contarProductosActivos() {
-        String sql = "SELECT COUNT(*) as total FROM productos WHERE activo = true";
-
-        try (Connection conn = ConexionDB.getConexion();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            if (rs.next()) {
-                return rs.getInt("total");
-            }
-
-        } catch (SQLException e) {
-            System.err.println("Error al contar productos: " + e.getMessage());
+        if (db == null) {
+            return 0;
         }
 
-        return 0;
+        try {
+            ApiFuture<QuerySnapshot> future = db.collection(COLLECTION_NAME)
+                    .whereEqualTo("activo", true)
+                    .get();
+            return future.get().size();
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("❌ Error al contar productos: " + e.getMessage());
+            return 0;
+        }
     }
 
-    // Obtener valor total del inventario
+    /**
+     * Obtener valor total del inventario
+     */
     public double obtenerValorTotalInventario() {
-        String sql = "SELECT SUM(precio_unitario * stock_actual) as total FROM productos WHERE activo = true";
-
-        try (Connection conn = ConexionDB.getConexion();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            if (rs.next()) {
-                return rs.getDouble("total");
-            }
-
-        } catch (SQLException e) {
-            System.err.println("Error al calcular valor del inventario: " + e.getMessage());
+        if (db == null) {
+            return 0.0;
         }
 
-        return 0.0;
+        try {
+            ApiFuture<QuerySnapshot> future = db.collection(COLLECTION_NAME)
+                    .whereEqualTo("activo", true)
+                    .get();
+
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+            double total = 0.0;
+
+            for (QueryDocumentSnapshot doc : documents) {
+                Double precio = doc.getDouble("precio_unitario");
+                Long stock = doc.getLong("stock_actual");
+
+                if (precio != null && stock != null) {
+                    total += precio * stock;
+                }
+            }
+
+            return total;
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("❌ Error al calcular valor del inventario: " + e.getMessage());
+            return 0.0;
+        }
     }
 
-    // Método auxiliar privado para crear objeto Producto desde ResultSet
-    private Producto crearProductoDesdeResultSet(ResultSet rs) throws SQLException {
-        Producto producto = new Producto(
-                rs.getInt("id_producto"),
-                rs.getString("nombre_producto"),
-                rs.getString("descripcion"),
-                rs.getDouble("precio_unitario"),
-                rs.getInt("stock_actual"),
-                rs.getInt("stock_minimo"),
-                rs.getInt("id_categoria"),
-                rs.getInt("id_proveedor"),
-                rs.getString("codigo_barras"),
-                rs.getBoolean("activo")
-        );
+    // ==================== MÉTODOS AUXILIARES ====================
 
-        producto.setFechaRegistro(rs.getTimestamp("fecha_registro"));
-        producto.setUltimaActualizacion(rs.getTimestamp("ultima_actualizacion"));
-        producto.setNombreCategoria(rs.getString("nombre_categoria"));
-        producto.setNombreProveedor(rs.getString("nombre_proveedor"));
+    /**
+     * Verificar si existe una categoría
+     */
+    private boolean existeCategoria(int idCategoria) {
+        try {
+            ApiFuture<QuerySnapshot> future = db.collection("categorias")
+                    .whereEqualTo("id_categoria", idCategoria)
+                    .limit(1)
+                    .get();
+            return !future.get().isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
-        return producto;
+    /**
+     * Verificar si existe un proveedor
+     */
+    private boolean existeProveedor(int idProveedor) {
+        try {
+            ApiFuture<QuerySnapshot> future = db.collection("proveedores")
+                    .whereEqualTo("id_proveedor", idProveedor)
+                    .limit(1)
+                    .get();
+            return !future.get().isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Obtener mapa de categorías (ID -> Nombre)
+     */
+    private Map<Integer, String> obtenerCategoriasMap() {
+        Map<Integer, String> map = new HashMap<>();
+        try {
+            ApiFuture<QuerySnapshot> future = db.collection("categorias").get();
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+
+            for (QueryDocumentSnapshot doc : documents) {
+                Long idLong = doc.getLong("id_categoria");
+                String nombre = doc.getString("nombre_categoria");
+                if (idLong != null && nombre != null) {
+                    map.put(idLong.intValue(), nombre);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error al obtener categorías: " + e.getMessage());
+        }
+        return map;
+    }
+
+    /**
+     * Obtener mapa de proveedores (ID -> Nombre)
+     */
+    private Map<Integer, String> obtenerProveedoresMap() {
+        Map<Integer, String> map = new HashMap<>();
+        try {
+            ApiFuture<QuerySnapshot> future = db.collection("proveedores").get();
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+
+            for (QueryDocumentSnapshot doc : documents) {
+                Long idLong = doc.getLong("id_proveedor");
+                String nombre = doc.getString("nombre_proveedor");
+                if (idLong != null && nombre != null) {
+                    map.put(idLong.intValue(), nombre);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error al obtener proveedores: " + e.getMessage());
+        }
+        return map;
+    }
+
+    /**
+     * Convertir DocumentSnapshot a objeto Producto
+     */
+    private Producto documentToProducto(DocumentSnapshot document,
+                                        Map<Integer, String> categoriasMap,
+                                        Map<Integer, String> proveedoresMap) {
+        try {
+            Long idProductoLong = document.getLong("id_producto");
+            String nombreProducto = document.getString("nombre_producto");
+            String descripcion = document.getString("descripcion");
+            Double precioUnitario = document.getDouble("precio_unitario");
+            Long stockActual = document.getLong("stock_actual");
+            Long stockMinimo = document.getLong("stock_minimo");
+            Long idCategoriaLong = document.getLong("id_categoria");
+            Long idProveedorLong = document.getLong("id_proveedor");
+            String codigoBarras = document.getString("codigo_barras");
+            Boolean activo = document.getBoolean("activo");
+            Timestamp fechaRegistro = document.getTimestamp("fecha_registro");
+            Timestamp ultimaActualizacion = document.getTimestamp("ultima_actualizacion");
+
+            int idProducto = idProductoLong != null ? idProductoLong.intValue() : document.getId().hashCode();
+            int idCategoria = idCategoriaLong != null ? idCategoriaLong.intValue() : 0;
+            int idProveedor = idProveedorLong != null ? idProveedorLong.intValue() : 0;
+
+            Producto producto = new Producto(
+                    idProducto,
+                    nombreProducto != null ? nombreProducto : "",
+                    descripcion,
+                    precioUnitario != null ? precioUnitario : 0.0,
+                    stockActual != null ? stockActual.intValue() : 0,
+                    stockMinimo != null ? stockMinimo.intValue() : 0,
+                    idCategoria,
+                    idProveedor,
+                    codigoBarras,
+                    activo != null ? activo : true
+            );
+
+            // Asignar nombres de categoría y proveedor
+            producto.setNombreCategoria(categoriasMap.getOrDefault(idCategoria, "Sin categoría"));
+            producto.setNombreProveedor(proveedoresMap.getOrDefault(idProveedor, "Sin proveedor"));
+
+            // Convertir Timestamps
+            if (fechaRegistro != null) {
+                producto.setFechaRegistro(new java.sql.Timestamp(fechaRegistro.toDate().getTime()));
+            }
+            if (ultimaActualizacion != null) {
+                producto.setUltimaActualizacion(new java.sql.Timestamp(ultimaActualizacion.toDate().getTime()));
+            }
+
+            return producto;
+
+        } catch (Exception e) {
+            System.err.println("❌ Error al convertir documento a Producto: " + e.getMessage());
+            return null;
+        }
     }
 }
