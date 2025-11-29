@@ -82,7 +82,7 @@ public class VentanaInventario extends JFrame {
     }
 
     private void inicializarComponentes() {
-        setTitle("Sistema de Inventario - Tienda");
+        setTitle("Sistema de Inventario de Tienda");
         setSize(1300, 750);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -108,7 +108,7 @@ public class VentanaInventario extends JFrame {
         // Panel superior: búsqueda por nombre
         JPanel panelBusquedaNombre = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
 
-        panelBusquedaNombre.add(new JLabel("🔍 Buscar por nombre:"));
+        panelBusquedaNombre.add(new JLabel("Buscar por nombre:"));
         txtBuscar = new JTextField(25);
         txtBuscar.setToolTipText("Ingrese el nombre del producto a buscar");
         // Buscar al presionar Enter
@@ -117,14 +117,14 @@ public class VentanaInventario extends JFrame {
 
         btnBuscar = new JButton("Buscar");
         btnBuscar.setBackground(new Color(100, 150, 250));
-        btnBuscar.setForeground(Color.WHITE);
+        btnBuscar.setForeground(Color.BLACK);
         btnBuscar.setFocusPainted(false);
         btnBuscar.addActionListener(e -> buscarProductos());
         panelBusquedaNombre.add(btnBuscar);
 
-        JButton btnMostrarTodos = new JButton("📋 Mostrar Todos");
+        JButton btnMostrarTodos = new JButton("Mostrar Todos");
         btnMostrarTodos.setBackground(new Color(80, 180, 100));
-        btnMostrarTodos.setForeground(Color.WHITE);
+        btnMostrarTodos.setForeground(Color.BLACK);
         btnMostrarTodos.setFocusPainted(false);
         btnMostrarTodos.addActionListener(e -> {
             txtBuscar.setText("");
@@ -135,9 +135,9 @@ public class VentanaInventario extends JFrame {
         });
         panelBusquedaNombre.add(btnMostrarTodos);
 
-        btnStockBajo = new JButton("⚠️ Stock Bajo");
+        btnStockBajo = new JButton("Stock Bajo");
         btnStockBajo.setBackground(new Color(255, 150, 50));
-        btnStockBajo.setForeground(Color.WHITE);
+        btnStockBajo.setForeground(Color.BLACK);
         btnStockBajo.setFocusPainted(false);
         btnStockBajo.addActionListener(e -> mostrarStockBajo());
         panelBusquedaNombre.add(btnStockBajo);
@@ -145,7 +145,7 @@ public class VentanaInventario extends JFrame {
         // Panel inferior: filtro por categoría
         JPanel panelFiltroCategoria = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
 
-        panelFiltroCategoria.add(new JLabel("📦 Filtrar por categoría:"));
+        panelFiltroCategoria.add(new JLabel("Filtrar por categoría:"));
         cmbFiltroCategoria = new JComboBox<>();
         cmbFiltroCategoria.setPreferredSize(new Dimension(200, 25));
         cmbFiltroCategoria.setToolTipText("Seleccione una categoría para filtrar");
@@ -153,7 +153,7 @@ public class VentanaInventario extends JFrame {
 
         btnFiltrarCategoria = new JButton("Aplicar Filtro");
         btnFiltrarCategoria.setBackground(new Color(120, 100, 200));
-        btnFiltrarCategoria.setForeground(Color.WHITE);
+        btnFiltrarCategoria.setForeground(Color.BLACK);
         btnFiltrarCategoria.setFocusPainted(false);
         btnFiltrarCategoria.addActionListener(e -> filtrarPorCategoria());
         panelFiltroCategoria.add(btnFiltrarCategoria);
@@ -330,7 +330,7 @@ public class VentanaInventario extends JFrame {
         // Nota de campos obligatorios
         gbc.gridx = 0; gbc.gridy = fila;
         gbc.gridwidth = 2;
-        JLabel lblNota = new JLabel("* Campos obligatorios");
+        JLabel lblNota = new JLabel("Campos obligatorios");
         lblNota.setFont(new Font("Arial", Font.ITALIC, 10));
         lblNota.setForeground(Color.GRAY);
         panel.add(lblNota, gbc);
@@ -339,30 +339,30 @@ public class VentanaInventario extends JFrame {
         // Botones
         JPanel panelBotones = new JPanel(new GridLayout(4, 1, 5, 5));
 
-        btnAgregar = new JButton("➕ Agregar Producto");
+        btnAgregar = new JButton("Agregar Producto");
         btnAgregar.setBackground(new Color(80, 180, 100));
-        btnAgregar.setForeground(Color.WHITE);
+        btnAgregar.setForeground(Color.BLACK);
         btnAgregar.setFocusPainted(false);
         btnAgregar.addActionListener(e -> agregarProducto());
         panelBotones.add(btnAgregar);
 
-        btnActualizar = new JButton("✏️ Actualizar Producto");
+        btnActualizar = new JButton("Actualizar Producto");
         btnActualizar.setBackground(new Color(100, 150, 250));
-        btnActualizar.setForeground(Color.WHITE);
+        btnActualizar.setForeground(Color.BLACK);
         btnActualizar.setFocusPainted(false);
         btnActualizar.addActionListener(e -> actualizarProducto());
         panelBotones.add(btnActualizar);
 
-        btnEliminar = new JButton("🗑️ Eliminar Producto");
+        btnEliminar = new JButton("Eliminar Producto");
         btnEliminar.setBackground(new Color(220, 80, 80));
-        btnEliminar.setForeground(Color.WHITE);
+        btnEliminar.setForeground(Color.BLACK);
         btnEliminar.setFocusPainted(false);
         btnEliminar.addActionListener(e -> eliminarProducto());
         panelBotones.add(btnEliminar);
 
-        btnLimpiar = new JButton("🧹 Limpiar Campos");
+        btnLimpiar = new JButton("Limpiar Campos");
         btnLimpiar.setBackground(new Color(150, 150, 150));
-        btnLimpiar.setForeground(Color.WHITE);
+        btnLimpiar.setForeground(Color.BLACK);
         btnLimpiar.setFocusPainted(false);
         btnLimpiar.addActionListener(e -> limpiarCampos());
         panelBotones.add(btnLimpiar);
@@ -382,34 +382,34 @@ public class VentanaInventario extends JFrame {
         lblEstadoConexion = new JLabel();
         if (conexionActiva) {
             String projectId = FirestoreConfig.getProjectId();
-            lblEstadoConexion.setText("✅ Conectado a: Firestore (" + projectId + ")");
+            lblEstadoConexion.setText("Conectado a: Firestore (" + projectId + ")");
             lblEstadoConexion.setForeground(new Color(0, 150, 0));
         } else {
-            lblEstadoConexion.setText("❌ Sin conexión a Firestore");
+            lblEstadoConexion.setText("Sin conexión a Firestore");
             lblEstadoConexion.setForeground(new Color(200, 0, 0));
         }
         lblEstadoConexion.setFont(new Font("Arial", Font.BOLD, 12));
         panel.add(lblEstadoConexion);
 
         // Botón para reconectar
-        JButton btnReconectar = new JButton("🔄 Reconectar");
+        JButton btnReconectar = new JButton("Reconectar");
         btnReconectar.setFocusPainted(false);
         btnReconectar.addActionListener(e -> {
             FirestoreConfig.inicializar();
             verificarConexion();
             if (conexionActiva) {
                 String projectId = FirestoreConfig.getProjectId();
-                lblEstadoConexion.setText("✅ Conectado a: Firestore (" + projectId + ")");
+                lblEstadoConexion.setText("Conectado a: Firestore (" + projectId + ")");
                 lblEstadoConexion.setForeground(new Color(0, 150, 0));
                 cargarCategorias();
                 cargarProveedores();
                 cargarCategoriasFiltro();
                 cargarDatos();
-                JOptionPane.showMessageDialog(this, "✅ Reconexión exitosa");
+                JOptionPane.showMessageDialog(this, "Reconexión exitosa");
             } else {
-                lblEstadoConexion.setText("❌ Sin conexión a Firestore");
+                lblEstadoConexion.setText("Sin conexión a Firestore");
                 lblEstadoConexion.setForeground(new Color(200, 0, 0));
-                JOptionPane.showMessageDialog(this, "❌ No se pudo reconectar");
+                JOptionPane.showMessageDialog(this, "No se pudo reconectar");
             }
         });
         panel.add(btnReconectar);
@@ -671,3 +671,349 @@ public class VentanaInventario extends JFrame {
                         "❌ Debe seleccionar una categoría",
                         "Campo Requerido",
                         JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            if (cmbProveedor.getSelectedItem() == null) {
+                JOptionPane.showMessageDialog(this,
+                        "❌ Debe seleccionar un proveedor",
+                        "Campo Requerido",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Validar formato de números
+            double precio;
+            int stockActual, stockMinimo;
+
+            try {
+                precio = Double.parseDouble(txtPrecio.getText().trim());
+                if (precio <= 0) {
+                    JOptionPane.showMessageDialog(this,
+                            "❌ El precio debe ser mayor a 0",
+                            "Precio Inválido",
+                            JOptionPane.WARNING_MESSAGE);
+                    txtPrecio.requestFocus();
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(this,
+                        "❌ El precio debe ser un número válido (ej: 99.99)",
+                        "Formato Incorrecto",
+                        JOptionPane.ERROR_MESSAGE);
+                txtPrecio.requestFocus();
+                return;
+            }
+
+            try {
+                stockActual = Integer.parseInt(txtStockActual.getText().trim());
+                if (stockActual < 0) {
+                    JOptionPane.showMessageDialog(this,
+                            "❌ El stock actual no puede ser negativo",
+                            "Stock Inválido",
+                            JOptionPane.WARNING_MESSAGE);
+                    txtStockActual.requestFocus();
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(this,
+                        "❌ El stock actual debe ser un número entero",
+                        "Formato Incorrecto",
+                        JOptionPane.ERROR_MESSAGE);
+                txtStockActual.requestFocus();
+                return;
+            }
+
+            try {
+                stockMinimo = Integer.parseInt(txtStockMinimo.getText().trim());
+                if (stockMinimo < 0) {
+                    JOptionPane.showMessageDialog(this,
+                            "❌ El stock mínimo no puede ser negativo",
+                            "Stock Inválido",
+                            JOptionPane.WARNING_MESSAGE);
+                    txtStockMinimo.requestFocus();
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(this,
+                        "❌ El stock mínimo debe ser un número entero",
+                        "Formato Incorrecto",
+                        JOptionPane.ERROR_MESSAGE);
+                txtStockMinimo.requestFocus();
+                return;
+            }
+
+            // Obtener categoría y proveedor seleccionados
+            Categoria categoriaSeleccionada = (Categoria) cmbCategoria.getSelectedItem();
+            Proveedor proveedorSeleccionado = (Proveedor) cmbProveedor.getSelectedItem();
+
+            // Crear objeto Producto
+            Producto producto = new Producto(
+                    txtNombre.getText().trim(),
+                    txtDescripcion.getText().trim().isEmpty() ? null : txtDescripcion.getText().trim(),
+                    precio,
+                    stockActual,
+                    stockMinimo,
+                    categoriaSeleccionada.getIdCategoria(),
+                    proveedorSeleccionado.getIdProveedor(),
+                    txtCodigoBarras.getText().trim().isEmpty() ? null : txtCodigoBarras.getText().trim()
+            );
+
+            // Intentar agregar a la base de datos
+            if (productoDAO.agregarProducto(producto)) {
+                JOptionPane.showMessageDialog(this,
+                        "✅ Producto agregado exitosamente\n" +
+                                "ID: " + producto.getIdProducto() + "\n" +
+                                "Nombre: " + producto.getNombreProducto(),
+                        "Éxito",
+                        JOptionPane.INFORMATION_MESSAGE);
+                limpiarCampos();
+                cargarDatos();
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "❌ Error al agregar el producto.\n" +
+                                "Verifica que la categoría y el proveedor existan en la base de datos.",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "❌ Error inesperado: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+        }
+    }
+
+    private void actualizarProducto() {
+        int filaSeleccionada = tablaProductos.getSelectedRow();
+        if (filaSeleccionada == -1) {
+            JOptionPane.showMessageDialog(this,
+                    "⚠️ Por favor seleccione un producto de la tabla para actualizar",
+                    "Ningún Producto Seleccionado",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        try {
+            // Validar campos obligatorios (mismo proceso que en agregar)
+            if (txtNombre.getText().trim().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "❌ El nombre del producto es obligatorio",
+                        "Campo Requerido",
+                        JOptionPane.WARNING_MESSAGE);
+                txtNombre.requestFocus();
+                return;
+            }
+
+            if (txtPrecio.getText().trim().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "❌ El precio es obligatorio",
+                        "Campo Requerido",
+                        JOptionPane.WARNING_MESSAGE);
+                txtPrecio.requestFocus();
+                return;
+            }
+
+            if (txtStockActual.getText().trim().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "❌ El stock actual es obligatorio",
+                        "Campo Requerido",
+                        JOptionPane.WARNING_MESSAGE);
+                txtStockActual.requestFocus();
+                return;
+            }
+
+            if (txtStockMinimo.getText().trim().isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "❌ El stock mínimo es obligatorio",
+                        "Campo Requerido",
+                        JOptionPane.WARNING_MESSAGE);
+                txtStockMinimo.requestFocus();
+                return;
+            }
+
+            // Validar formato de números
+            double precio = Double.parseDouble(txtPrecio.getText().trim());
+            int stockActual = Integer.parseInt(txtStockActual.getText().trim());
+            int stockMinimo = Integer.parseInt(txtStockMinimo.getText().trim());
+
+            if (precio <= 0) {
+                JOptionPane.showMessageDialog(this,
+                        "❌ El precio debe ser mayor a 0",
+                        "Precio Inválido",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            if (stockActual < 0 || stockMinimo < 0) {
+                JOptionPane.showMessageDialog(this,
+                        "❌ Los valores de stock no pueden ser negativos",
+                        "Stock Inválido",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Obtener ID del producto seleccionado
+            int id = (int) modeloTabla.getValueAt(filaSeleccionada, 0);
+
+            // Obtener categoría y proveedor seleccionados
+            Categoria categoriaSeleccionada = (Categoria) cmbCategoria.getSelectedItem();
+            Proveedor proveedorSeleccionado = (Proveedor) cmbProveedor.getSelectedItem();
+
+            // Crear objeto Producto con el ID existente
+            Producto producto = new Producto(
+                    id,
+                    txtNombre.getText().trim(),
+                    txtDescripcion.getText().trim().isEmpty() ? null : txtDescripcion.getText().trim(),
+                    precio,
+                    stockActual,
+                    stockMinimo,
+                    categoriaSeleccionada.getIdCategoria(),
+                    proveedorSeleccionado.getIdProveedor(),
+                    txtCodigoBarras.getText().trim().isEmpty() ? null : txtCodigoBarras.getText().trim(),
+                    true
+            );
+
+            // Confirmar actualización
+            int confirmacion = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Está seguro de actualizar este producto?\n\n" +
+                            "Producto: " + producto.getNombreProducto() + "\n" +
+                            "ID: " + producto.getIdProducto(),
+                    "Confirmar Actualización",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE
+            );
+
+            if (confirmacion == JOptionPane.YES_OPTION) {
+                if (productoDAO.actualizarProducto(producto)) {
+                    JOptionPane.showMessageDialog(this,
+                            "✅ Producto actualizado exitosamente",
+                            "Éxito",
+                            JOptionPane.INFORMATION_MESSAGE);
+                    limpiarCampos();
+                    cargarDatos();
+                } else {
+                    JOptionPane.showMessageDialog(this,
+                            "❌ Error al actualizar el producto",
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this,
+                    "❌ Formato incorrecto en precio o cantidades.\n" +
+                            "Precio debe ser decimal (ej: 99.99)\n" +
+                            "Stock debe ser número entero",
+                    "Error de Formato",
+                    JOptionPane.ERROR_MESSAGE);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "❌ Error inesperado: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+        }
+    }
+
+    private void eliminarProducto() {
+        int filaSeleccionada = tablaProductos.getSelectedRow();
+        if (filaSeleccionada == -1) {
+            JOptionPane.showMessageDialog(this,
+                    "⚠️ Por favor seleccione un producto de la tabla para eliminar",
+                    "Ningún Producto Seleccionado",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Obtener información del producto
+        int id = (int) modeloTabla.getValueAt(filaSeleccionada, 0);
+        String nombre = (String) modeloTabla.getValueAt(filaSeleccionada, 1);
+
+        // Confirmar eliminación
+        int confirmacion = JOptionPane.showConfirmDialog(
+                this,
+                "¿Está seguro de eliminar este producto?\n\n" +
+                        "Producto: " + nombre + "\n" +
+                        "ID: " + id + "\n\n" +
+                        "NOTA: El producto se marcará como inactivo\n" +
+                        "(no se eliminará físicamente de la base de datos)",
+                "Confirmar Eliminación",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+
+        if (confirmacion == JOptionPane.YES_OPTION) {
+            if (productoDAO.eliminarProducto(id)) {
+                JOptionPane.showMessageDialog(this,
+                        "✅ Producto eliminado exitosamente\n" +
+                                "(Marcado como inactivo)",
+                        "Éxito",
+                        JOptionPane.INFORMATION_MESSAGE);
+                limpiarCampos();
+                cargarDatos();
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "❌ Error al eliminar el producto",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void cargarProductoSeleccionado() {
+        int filaSeleccionada = tablaProductos.getSelectedRow();
+        if (filaSeleccionada != -1) {
+            int id = (int) modeloTabla.getValueAt(filaSeleccionada, 0);
+            Producto producto = productoDAO.obtenerProductoPorId(id);
+
+            if (producto != null) {
+                txtNombre.setText(producto.getNombreProducto());
+                txtDescripcion.setText(producto.getDescripcion() != null ? producto.getDescripcion() : "");
+                txtPrecio.setText(String.valueOf(producto.getPrecioUnitario()));
+                txtStockActual.setText(String.valueOf(producto.getStockActual()));
+                txtStockMinimo.setText(String.valueOf(producto.getStockMinimo()));
+                txtCodigoBarras.setText(producto.getCodigoBarras() != null ? producto.getCodigoBarras() : "");
+
+                // Seleccionar categoría en el ComboBox
+                for (int i = 0; i < cmbCategoria.getItemCount(); i++) {
+                    if (cmbCategoria.getItemAt(i).getIdCategoria() == producto.getIdCategoria()) {
+                        cmbCategoria.setSelectedIndex(i);
+                        break;
+                    }
+                }
+
+                // Seleccionar proveedor en el ComboBox
+                for (int i = 0; i < cmbProveedor.getItemCount(); i++) {
+                    if (cmbProveedor.getItemAt(i).getIdProveedor() == producto.getIdProveedor()) {
+                        cmbProveedor.setSelectedIndex(i);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    private void limpiarCampos() {
+        txtNombre.setText("");
+        txtDescripcion.setText("");
+        txtPrecio.setText("");
+        txtStockActual.setText("");
+        txtStockMinimo.setText("");
+        txtCodigoBarras.setText("");
+        txtBuscar.setText("");
+
+        if (cmbCategoria.getItemCount() > 0) {
+            cmbCategoria.setSelectedIndex(0);
+        }
+        if (cmbProveedor.getItemCount() > 0) {
+            cmbProveedor.setSelectedIndex(0);
+        }
+
+        tablaProductos.clearSelection();
+        txtNombre.requestFocus();
+    }
+}
