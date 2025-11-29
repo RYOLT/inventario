@@ -2,8 +2,7 @@ package com.tienda.dao;
 
 import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.*;
-import com.tienda.database.ConexionDB;
-import com.tienda.database.ConexionDB;
+import com.tienda.firebase.FirebaseConfig;
 import com.tienda.modelo.Proveedor;
 
 import java.util.ArrayList;
@@ -17,7 +16,7 @@ public class ProveedorDAO {
     private Firestore db;
 
     public ProveedorDAO() {
-        this.db = ConexionDB.getFirestore();
+        this.db = FirebaseConfig.getFirestore();
     }
 
     // Obtener todos los proveedores

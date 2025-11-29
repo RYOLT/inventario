@@ -2,7 +2,7 @@ package com.tienda.dao;
 
 import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.*;
-import com.tienda.database.ConexionDB;
+import com.tienda.firebase.FirebaseConfig;
 import com.tienda.modelo.Categoria;
 
 import java.util.ArrayList;
@@ -16,7 +16,7 @@ public class CategoriaDAO {
     private Firestore db;
 
     public CategoriaDAO() {
-        this.db = ConexionDB.getFirestore();
+        this.db = FirebaseConfig.getFirestore();
     }
 
     // Obtener todas las categorías

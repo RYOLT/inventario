@@ -300,10 +300,21 @@ public class VentanaInventario extends JFrame {
     }
 
     private void cargarDatos() {
+        System.out.println("🔄 Cargando datos en la tabla...");
         modeloTabla.setRowCount(0);
+
         List<Producto> productos = productoDAO.obtenerTodosLosProductos();
 
+        System.out.println("📊 Productos recibidos del DAO: " + productos.size());
+
         for (Producto p : productos) {
+            if (p == null) {
+                System.err.println("⚠️ Producto nulo encontrado, saltando...");
+                continue;
+            }
+
+            System.out.println("➕ Agregando a tabla: " + p.getNombreProducto());
+
             Object[] fila = {
                     p.getIdProducto(),
                     p.getNombreProducto(),
@@ -313,12 +324,14 @@ public class VentanaInventario extends JFrame {
                     p.getStockMinimo(),
                     p.getNombreCategoria() != null ? p.getNombreCategoria() : "N/A",
                     p.getNombreProveedor() != null ? p.getNombreProveedor() : "N/A",
-                    p.getCodigoBarras(),
-                    p.getCodigoBarras() // COLUMNA OCULTA con el docId
+                    p.getCodigoBarras() != null ? p.getCodigoBarras() : "",
+                    p.getCodigoBarras() // Columna oculta con docId (temporal)
             };
 
             modeloTabla.addRow(fila);
         }
+
+        System.out.println("✅ Datos cargados en tabla: " + modeloTabla.getRowCount() + " filas");
     }
 
     private void buscarProductos() {

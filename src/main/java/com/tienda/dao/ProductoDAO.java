@@ -2,7 +2,7 @@ package com.tienda.dao;
 
 import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.*;
-import com.tienda.database.ConexionDB;
+import com.tienda.firebase.FirebaseConfig;
 import com.tienda.modelo.Producto;
 
 import java.util.ArrayList;
@@ -16,7 +16,7 @@ public class ProductoDAO {
     private Firestore firestore;
 
     public ProductoDAO() {
-        this.firestore = ConexionDB.getFirestore();
+        this.firestore = FirebaseConfig.getFirestore();
     }
 
     // Agregar producto

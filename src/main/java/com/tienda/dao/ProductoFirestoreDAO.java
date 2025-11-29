@@ -48,18 +48,28 @@ public class ProductoFirestoreDAO {
         List<Producto> productos = new ArrayList<>();
 
         try {
+            System.out.println("🔍 Intentando obtener productos de Firestore...");
+
             QuerySnapshot querySnapshot = db.collection("productos")
                     .whereEqualTo("activo", true)
                     .get()
                     .get();
 
+            System.out.println("📊 Documentos encontrados: " + querySnapshot.size());
+
             for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
+                System.out.println("📦 Documento ID: " + doc.getId());
+                System.out.println("   Datos: " + doc.getData());
+
                 Producto producto = documentToProducto(doc);
                 productos.add(producto);
             }
 
+            System.out.println("✅ Total productos cargados: " + productos.size());
+
         } catch (InterruptedException | ExecutionException e) {
             System.err.println("❌ Error al obtener productos: " + e.getMessage());
+            e.printStackTrace();
         }
 
         return productos;
@@ -152,36 +162,83 @@ public class ProductoFirestoreDAO {
 
     // Convertir DocumentSnapshot a Producto
     private Producto documentToProducto(DocumentSnapshot doc) {
-        Producto producto = new Producto();
-        producto.setNombreProducto(doc.getString("nombre_producto"));
-        producto.setDescripcion(doc.getString("descripcion"));
+        try {
+            System.out.println("🔄 Convirtiendo documento: " + doc.getId());
 
-        // Manejo seguro de valores nulos
-        Double precio = doc.getDouble("precio_unitario");
-        producto.setPrecioUnitario(precio != null ? precio : 0.0);
+            Producto producto = new Producto();
 
-        Long stockActual = doc.getLong("stock_actual");
-        producto.setStockActual(stockActual != null ? stockActual.intValue() : 0);
+            // Obtener campos con manejo de nulos
+            String nombreProducto = doc.getString("nombre_producto");
+            if (nombreProducto == null) nombreProducto = doc.getString("nombre");
+            producto.setNombreProducto(nombreProducto);
+            System.out.println("   Nombre: " + nombreProducto);
 
-        Long stockMinimo = doc.getLong("stock_minimo");
-        producto.setStockMinimo(stockMinimo != null ? stockMinimo.intValue() : 0);
+            producto.setDescripcion(doc.getString("descripcion"));
 
-        Long idCategoria = doc.getLong("id_categoria");
-        producto.setIdCategoria(idCategoria != null ? idCategoria.intValue() : 0);
+            // Precio
+            Object precioObj = doc.get("precio_unitario");
+            if (precioObj == null) precioObj = doc.get("precio");
+            double precio = 0.0;
+            if (precioObj instanceof Number) {
+                precio = ((Number) precioObj).doubleValue();
+            }
+            producto.setPrecioUnitario(precio);
+            System.out.println("   Precio: " + precio);
 
-        Long idProveedor = doc.getLong("id_proveedor");
-        producto.setIdProveedor(idProveedor != null ? idProveedor.intValue() : 0);
+            // Stock actual
+            Object stockObj = doc.get("stock_actual");
+            if (stockObj == null) stockObj = doc.get("stock");
+            int stock = 0;
+            if (stockObj instanceof Number) {
+                stock = ((Number) stockObj).intValue();
+            }
+            producto.setStockActual(stock);
+            System.out.println("   Stock: " + stock);
 
-        producto.setCodigoBarras(doc.getString("codigo_barras"));
+            // Stock mínimo
+            Object stockMinObj = doc.get("stock_minimo");
+            if (stockMinObj == null) stockMinObj = doc.get("stockMin");
+            int stockMin = 0;
+            if (stockMinObj instanceof Number) {
+                stockMin = ((Number) stockMinObj).intValue();
+            }
+            producto.setStockMinimo(stockMin);
 
-        Boolean activo = doc.getBoolean("activo");
-        producto.setActivo(activo != null ? activo : true);
+            // ID Categoría
+            Object catObj = doc.get("id_categoria");
+            if (catObj == null) catObj = doc.get("idCategoria");
+            int idCat = 0;
+            if (catObj instanceof Number) {
+                idCat = ((Number) catObj).intValue();
+            }
+            producto.setIdCategoria(idCat);
 
-        // IMPORTANTE: Guardar el ID del documento de Firestore
-        producto.setIdProducto(doc.getId().hashCode());
-        producto.setCodigoBarras(doc.getId()); // USAR CÓDIGO DE BARRAS PARA GUARDAR EL DOC ID TEMPORALMENTE
+            // ID Proveedor
+            Object provObj = doc.get("id_proveedor");
+            if (provObj == null) provObj = doc.get("idProveedor");
+            int idProv = 0;
+            if (provObj instanceof Number) {
+                idProv = ((Number) provObj).intValue();
+            }
+            producto.setIdProveedor(idProv);
 
-        return producto;
+            producto.setCodigoBarras(doc.getString("codigo_barras"));
+
+            Boolean activo = doc.getBoolean("activo");
+            producto.setActivo(activo != null ? activo : true);
+
+            // Guardar el ID del documento
+            producto.setIdProducto(doc.getId().hashCode());
+
+            System.out.println("✅ Producto convertido exitosamente");
+
+            return producto;
+
+        } catch (Exception e) {
+            System.err.println("❌ Error al convertir documento: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 
     // Obtener producto por ID de documento
