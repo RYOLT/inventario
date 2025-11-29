@@ -1,70 +1,67 @@
 package com.tienda.database;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.firestore.Firestore;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
+import com.google.firebase.cloud.FirestoreClient;
+
+import java.io.IOException;
+import java.io.InputStream;
 
 public class ConexionDB {
-    // Configuración para XAMPP (MySQL)
-    private static final String URL = "jdbc:mysql://localhost:3306/inventario_tienda";
-    private static final String USUARIO = "root";
-    private static final String PASSWORD = ""; // Por defecto XAMPP no tiene contraseña
+    private static Firestore db = null;
+    private static boolean inicializado = false;
 
-    private static Connection conexion = null;
+    // Inicializar Firebase
+    public static void inicializar() {
+        if (inicializado) {
+            return;
+        }
 
-    // Obtener conexión
-    public static Connection getConexion() {
         try {
-            if (conexion == null || conexion.isClosed()) {
-                // Cargar el driver de MySQL
-                Class.forName("com.mysql.cj.jdbc.Driver");
+            // Opción 1: Desde archivo en resources
+            InputStream serviceAccount = ConexionDB.class
+                    .getClassLoader()
+                    .getResourceAsStream("serviceAccountKey.json");
 
-                // Establecer conexión
-                conexion = DriverManager.getConnection(URL, USUARIO, PASSWORD);
-                System.out.println("✓ Conexión exitosa a MySQL (XAMPP)");
+            // Opción 2: Desde archivo en disco (si prefieres esta opción)
+            // FileInputStream serviceAccount = new FileInputStream("ruta/a/serviceAccountKey.json");
+
+            if (serviceAccount == null) {
+                throw new IOException("No se encontró el archivo serviceAccountKey.json en resources");
             }
-        } catch (ClassNotFoundException e) {
-            System.err.println("✗ Error: Driver de MySQL no encontrado");
-            System.err.println("  Asegúrate de tener la dependencia mysql-connector-j en pom.xml");
-            e.printStackTrace();
-        } catch (SQLException e) {
-            System.err.println("✗ Error al conectar con la base de datos MySQL");
+
+            FirebaseOptions options = FirebaseOptions.builder()
+                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                    .build();
+
+            FirebaseApp.initializeApp(options);
+
+            db = FirestoreClient.getFirestore();
+            inicializado = true;
+
+            System.out.println("✓ Conexión exitosa a Firebase Firestore");
+
+        } catch (IOException e) {
+            System.err.println("✗ Error al inicializar Firebase");
             System.err.println("  Verifica que:");
-            System.err.println("  1. XAMPP esté ejecutándose");
-            System.err.println("  2. MySQL esté iniciado");
-            System.err.println("  3. La base de datos 'inventario_tienda' exista");
-            System.err.println("  4. Las credenciales sean correctas");
+            System.err.println("  1. El archivo serviceAccountKey.json esté en src/main/resources/");
+            System.err.println("  2. Las credenciales sean válidas");
             e.printStackTrace();
-        }
-        return conexion;
-    }
-
-    // Cerrar conexión
-    public static void cerrarConexion() {
-        try {
-            if (conexion != null && !conexion.isClosed()) {
-                conexion.close();
-                System.out.println("✓ Conexión cerrada correctamente");
-            }
-        } catch (SQLException e) {
-            System.err.println("✗ Error al cerrar la conexión: " + e.getMessage());
         }
     }
 
-    // Metodo de prueba de conexión
-    public static boolean probarConexion() {
-        try {
-            Connection conn = getConexion();
-            if (conn != null && !conn.isClosed()) {
-                System.out.println("✓ Prueba de conexión exitosa");
-                System.out.println("  Base de datos: inventario_tienda");
-                System.out.println("  Servidor: localhost:3306");
-                return true;
-            }
-        } catch (SQLException e) {
-            System.err.println("✗ Prueba de conexión fallida");
-            e.printStackTrace();
+    // Obtener instancia de Firestore
+    public static Firestore getFirestore() {
+        if (!inicializado) {
+            inicializar();
         }
-        return false;
+        return db;
+    }
+
+    // Verificar si está inicializado
+    public static boolean estaConectado() {
+        return inicializado && db != null;
     }
 }

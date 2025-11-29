@@ -16,6 +16,9 @@ public class Producto {
     private Timestamp ultimaActualizacion;
     private boolean activo;
 
+    // Para Firebase: guardar el ID del documento
+    private String documentoId;
+
     // Para mostrar en la interfaz (no están en la BD)
     private String nombreCategoria;
     private String nombreProveedor;
@@ -153,6 +156,15 @@ public class Producto {
         this.activo = activo;
     }
 
+    // Nuevo: getter y setter para el ID del documento de Firebase
+    public String getDocumentoId() {
+        return documentoId;
+    }
+
+    public void setDocumentoId(String documentoId) {
+        this.documentoId = documentoId;
+    }
+
     public String getNombreCategoria() {
         return nombreCategoria;
     }
@@ -169,7 +181,7 @@ public class Producto {
         this.nombreProveedor = nombreProveedor;
     }
 
-    // Método para verificar stock bajo
+    // Metodo para verificar stock bajo
     public boolean isBajoStock() {
         return stockActual <= stockMinimo;
     }
@@ -185,6 +197,7 @@ public class Producto {
                 ", categoria='" + nombreCategoria + '\'' +
                 ", proveedor='" + nombreProveedor + '\'' +
                 ", activo=" + activo +
+                ", documentoId='" + documentoId + '\'' +
                 '}';
     }
 }

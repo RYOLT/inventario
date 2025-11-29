@@ -7,13 +7,16 @@ import com.tienda.modelo.Categoria;
 import com.tienda.modelo.Producto;
 import com.tienda.modelo.Proveedor;
 
+import com.tienda.firebase.FirebaseConfig;
+import com.tienda.dao.ProductoFirestoreDAO; // NUEVO
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
 
 public class VentanaInventario extends JFrame {
-    private ProductoDAO productoDAO;
+    private ProductoFirestoreDAO productoDAO;
     private CategoriaDAO categoriaDAO;
     private ProveedorDAO proveedorDAO;
 
@@ -32,8 +35,13 @@ public class VentanaInventario extends JFrame {
     private JButton btnAgregar, btnActualizar, btnEliminar, btnLimpiar,
             btnBuscar, btnStockBajo;
 
+    // Para almacenar el documento ID seleccionado (necesario para Firebase)
+    private String documentoIdSeleccionado = null;
+
     public VentanaInventario() {
-        productoDAO = new ProductoDAO();
+        FirebaseConfig.inicializar();
+
+        productoDAO = new ProductoFirestoreDAO();
         categoriaDAO = new CategoriaDAO();
         proveedorDAO = new ProveedorDAO();
 
@@ -55,12 +63,27 @@ public class VentanaInventario extends JFrame {
 
         // Panel central - Tabla
         add(crearPanelTabla(), BorderLayout.CENTER);
+        String[] columnas = {"ID", "Nombre", "Descripción", "Precio", "Stock",
+                "Stock Mín.", "Categoría", "Proveedor", "Código Barras", "DocID"}; // AGREGADO DocID
+
+        modeloTabla = new DefaultTableModel(columnas, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        tablaProductos = new JTable(modeloTabla);
 
         // Panel derecho - Formulario
         add(crearPanelFormulario(), BorderLayout.EAST);
 
         // Panel inferior - Estado
         add(crearPanelEstado(), BorderLayout.SOUTH);
+
+        tablaProductos.getColumnModel().getColumn(9).setMinWidth(0);
+        tablaProductos.getColumnModel().getColumn(9).setMaxWidth(0);
+        tablaProductos.getColumnModel().getColumn(9).setWidth(0);
     }
 
     private JPanel crearPanelBusqueda() {
@@ -91,7 +114,8 @@ public class VentanaInventario extends JFrame {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder("Productos en Inventario"));
 
-        String[] columnas = {"ID", "Nombre", "Descripción", "Precio", "Stock",
+        // Agregamos columna para el Doc ID (oculta pero necesaria)
+        String[] columnas = {"Doc ID", "Nombre", "Descripción", "Precio", "Stock",
                 "Stock Mín.", "Categoría", "Proveedor", "Código Barras"};
         modeloTabla = new DefaultTableModel(columnas, 0) {
             @Override
@@ -108,8 +132,12 @@ public class VentanaInventario extends JFrame {
             }
         });
 
+        // Ocultar la columna Doc ID (pero mantenerla en el modelo)
+        tablaProductos.getColumnModel().getColumn(0).setMinWidth(0);
+        tablaProductos.getColumnModel().getColumn(0).setMaxWidth(0);
+        tablaProductos.getColumnModel().getColumn(0).setWidth(0);
+
         // Ajustar anchos de columnas
-        tablaProductos.getColumnModel().getColumn(0).setPreferredWidth(50);  // ID
         tablaProductos.getColumnModel().getColumn(1).setPreferredWidth(150); // Nombre
         tablaProductos.getColumnModel().getColumn(2).setPreferredWidth(200); // Descripción
         tablaProductos.getColumnModel().getColumn(3).setPreferredWidth(80);  // Precio
@@ -233,7 +261,7 @@ public class VentanaInventario extends JFrame {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         panel.setBorder(BorderFactory.createEtchedBorder());
 
-        JLabel lblEstado = new JLabel("✅ Conectado a: inventario_tienda (MySQL - XAMPP)");
+        JLabel lblEstado = new JLabel("✅ Conectado a: Firebase Firestore");
         lblEstado.setFont(new Font("Arial", Font.BOLD, 12));
         lblEstado.setForeground(new Color(0, 150, 0));
         panel.add(lblEstado);
@@ -247,7 +275,7 @@ public class VentanaInventario extends JFrame {
 
         if (categorias.isEmpty()) {
             JOptionPane.showMessageDialog(this,
-                    "No hay categorías. Ejecuta el script SQL primero.",
+                    "No hay categorías en Firebase.\nAgrega algunas desde la consola de Firebase.",
                     "Advertencia", JOptionPane.WARNING_MESSAGE);
         }
 
@@ -262,7 +290,7 @@ public class VentanaInventario extends JFrame {
 
         if (proveedores.isEmpty()) {
             JOptionPane.showMessageDialog(this,
-                    "No hay proveedores. Ejecuta el script SQL primero.",
+                    "No hay proveedores en Firebase.\nAgrega algunos desde la consola de Firebase.",
                     "Advertencia", JOptionPane.WARNING_MESSAGE);
         }
 
@@ -272,10 +300,21 @@ public class VentanaInventario extends JFrame {
     }
 
     private void cargarDatos() {
+        System.out.println("🔄 Cargando datos en la tabla...");
         modeloTabla.setRowCount(0);
+
         List<Producto> productos = productoDAO.obtenerTodosLosProductos();
 
+        System.out.println("📊 Productos recibidos del DAO: " + productos.size());
+
         for (Producto p : productos) {
+            if (p == null) {
+                System.err.println("⚠️ Producto nulo encontrado, saltando...");
+                continue;
+            }
+
+            System.out.println("➕ Agregando a tabla: " + p.getNombreProducto());
+
             Object[] fila = {
                     p.getIdProducto(),
                     p.getNombreProducto(),
@@ -283,18 +322,16 @@ public class VentanaInventario extends JFrame {
                     String.format("$%.2f", p.getPrecioUnitario()),
                     p.getStockActual(),
                     p.getStockMinimo(),
-                    p.getNombreCategoria(),
-                    p.getNombreProveedor(),
-                    p.getCodigoBarras()
+                    p.getNombreCategoria() != null ? p.getNombreCategoria() : "N/A",
+                    p.getNombreProveedor() != null ? p.getNombreProveedor() : "N/A",
+                    p.getCodigoBarras() != null ? p.getCodigoBarras() : "",
+                    p.getCodigoBarras() // Columna oculta con docId (temporal)
             };
 
-            // Resaltar productos con stock bajo
             modeloTabla.addRow(fila);
-            if (p.isBajoStock()) {
-                int ultimaFila = modeloTabla.getRowCount() - 1;
-                // Podríamos cambiar el color de fondo aquí
-            }
         }
+
+        System.out.println("✅ Datos cargados en tabla: " + modeloTabla.getRowCount() + " filas");
     }
 
     private void buscarProductos() {
@@ -311,8 +348,9 @@ public class VentanaInventario extends JFrame {
             JOptionPane.showMessageDialog(this, "No se encontraron productos");
         } else {
             for (Producto p : productos) {
+                String docId = p.getCodigoBarras();
                 Object[] fila = {
-                        p.getIdProducto(),
+                        docId,
                         p.getNombreProducto(),
                         p.getDescripcion(),
                         String.format("$%.2f", p.getPrecioUnitario()),
@@ -338,8 +376,9 @@ public class VentanaInventario extends JFrame {
                     JOptionPane.INFORMATION_MESSAGE);
         } else {
             for (Producto p : productos) {
+                String docId = p.getCodigoBarras();
                 Object[] fila = {
-                        p.getIdProducto(),
+                        docId,
                         p.getNombreProducto(),
                         p.getDescripcion(),
                         String.format("$%.2f", p.getPrecioUnitario()),
@@ -361,7 +400,6 @@ public class VentanaInventario extends JFrame {
 
     private void agregarProducto() {
         try {
-            // Validar campos obligatorios
             if (txtNombre.getText().trim().isEmpty() ||
                     txtPrecio.getText().trim().isEmpty() ||
                     txtStockActual.getText().trim().isEmpty() ||
@@ -399,7 +437,7 @@ public class VentanaInventario extends JFrame {
                 cargarDatos();
             } else {
                 JOptionPane.showMessageDialog(this,
-                        "❌ Error al agregar producto. Verifica las FK.",
+                        "❌ Error al agregar producto",
                         "Error",
                         JOptionPane.ERROR_MESSAGE);
             }
@@ -414,19 +452,19 @@ public class VentanaInventario extends JFrame {
     private void actualizarProducto() {
         int filaSeleccionada = tablaProductos.getSelectedRow();
         if (filaSeleccionada == -1) {
-            JOptionPane.showMessageDialog(this,
-                    "Seleccione un producto de la tabla");
+            JOptionPane.showMessageDialog(this, "Seleccione un producto de la tabla");
             return;
         }
 
         try {
-            int id = (int) modeloTabla.getValueAt(filaSeleccionada, 0);
+            // Obtener docId de la columna oculta
+            String docId = (String) modeloTabla.getValueAt(filaSeleccionada, 9);
 
             Categoria categoriaSeleccionada = (Categoria) cmbCategoria.getSelectedItem();
             Proveedor proveedorSeleccionado = (Proveedor) cmbProveedor.getSelectedItem();
 
             Producto producto = new Producto(
-                    id,
+                    0, // ID no se usa en Firestore
                     txtNombre.getText().trim(),
                     txtDescripcion.getText().trim(),
                     Double.parseDouble(txtPrecio.getText().trim()),
@@ -438,48 +476,43 @@ public class VentanaInventario extends JFrame {
                     true
             );
 
-            if (productoDAO.actualizarProducto(producto)) {
-                JOptionPane.showMessageDialog(this,
-                        "✅ Producto actualizado exitosamente");
+            if (productoDAO.actualizarProducto(docId, producto)) {
+                JOptionPane.showMessageDialog(this, "✅ Producto actualizado exitosamente");
                 limpiarCampos();
                 cargarDatos();
             } else {
-                JOptionPane.showMessageDialog(this,
-                        "❌ Error al actualizar producto");
+                JOptionPane.showMessageDialog(this, "❌ Error al actualizar producto");
             }
         } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this,
-                    "❌ Formato incorrecto en precio o cantidades");
+            JOptionPane.showMessageDialog(this, "❌ Formato incorrecto en precio o cantidades");
         }
     }
 
     private void eliminarProducto() {
         int filaSeleccionada = tablaProductos.getSelectedRow();
         if (filaSeleccionada == -1) {
-            JOptionPane.showMessageDialog(this,
-                    "Seleccione un producto de la tabla");
+            JOptionPane.showMessageDialog(this, "Seleccione un producto de la tabla");
             return;
         }
 
         int confirmacion = JOptionPane.showConfirmDialog(
                 this,
-                "¿Está seguro de eliminar este producto?\n(Se marcará como inactivo)",
+                "¿Está seguro de eliminar este producto?",
                 "Confirmar eliminación",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE
         );
 
         if (confirmacion == JOptionPane.YES_OPTION) {
-            int id = (int) modeloTabla.getValueAt(filaSeleccionada, 0);
+            // Obtener docId de la columna oculta
+            String docId = (String) modeloTabla.getValueAt(filaSeleccionada, 9);
 
-            if (productoDAO.eliminarProducto(id)) {
-                JOptionPane.showMessageDialog(this,
-                        "✅ Producto eliminado exitosamente");
+            if (productoDAO.eliminarProducto(docId)) {
+                JOptionPane.showMessageDialog(this, "✅ Producto eliminado exitosamente");
                 limpiarCampos();
                 cargarDatos();
             } else {
-                JOptionPane.showMessageDialog(this,
-                        "❌ Error al eliminar producto");
+                JOptionPane.showMessageDialog(this, "❌ Error al eliminar producto");
             }
         }
     }
@@ -487,8 +520,10 @@ public class VentanaInventario extends JFrame {
     private void cargarProductoSeleccionado() {
         int filaSeleccionada = tablaProductos.getSelectedRow();
         if (filaSeleccionada != -1) {
-            int id = (int) modeloTabla.getValueAt(filaSeleccionada, 0);
-            Producto producto = productoDAO.obtenerProductoPorId(id);
+            // Obtener el docId de la columna oculta (índice 9)
+            String docId = (String) modeloTabla.getValueAt(filaSeleccionada, 9);
+
+            Producto producto = productoDAO.obtenerProductoPorId(docId);
 
             if (producto != null) {
                 txtNombre.setText(producto.getNombreProducto());
@@ -524,6 +559,7 @@ public class VentanaInventario extends JFrame {
         txtStockMinimo.setText("");
         txtCodigoBarras.setText("");
         txtBuscar.setText("");
+        documentoIdSeleccionado = null;
 
         if (cmbCategoria.getItemCount() > 0) {
             cmbCategoria.setSelectedIndex(0);
